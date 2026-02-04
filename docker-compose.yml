@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  kiro2api-node:
+    build: .
+    container_name: kiro2api-node
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+      - API_KEY=sk-ykq001
+      - ADMIN_KEY=Yukequan96
+      - REGION=us-east-1
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
