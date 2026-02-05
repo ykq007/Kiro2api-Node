@@ -6,6 +6,25 @@
     <title>Kiro2api-Node 管理面板</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- 工具函数 -->
+    <script src="./utils.js"></script>
+    <script src="./api.js"></script>
+    <script src="./ui.js"></script>
+    <!-- React 组件 -->
+    <script type="text/babel" src="./components/LoginPage.js"></script>
+    <script type="text/babel" src="./components/StatsGrid.js"></script>
+    <script type="text/babel" src="./components/Charts.js"></script>
+    <script type="text/babel" src="./components/AnalyticsDashboard.js"></script>
+    <script type="text/babel" src="./components/TopNavBar.js"></script>
+    <script type="text/babel" src="./components/MainTabs.js"></script>
+    <script type="text/babel" src="./components/AccountsToolbar.js"></script>
+    <script type="text/babel" src="./components/LogsToolbar.js"></script>
+    <script type="text/babel" src="./components/SettingsPanel.js"></script>
+    <script type="text/babel" src="./components/AccountsTable.js"></script>
+    <script type="text/babel" src="./components/LogsTable.js"></script>
     <style>
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
@@ -19,291 +38,44 @@
 </head>
 <body class="bg-gray-50 min-h-screen">
     <!-- 登录页面 -->
-    <div id="loginPage" class="min-h-screen flex items-center justify-center animate-fadeIn">
-        <div class="bg-white rounded-2xl shadow-lg p-8 w-full max-w-md">
-            <div class="text-center mb-8">
-                <div class="w-16 h-16 bg-blue-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                    <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
-                    </svg>
-                </div>
-                <h1 class="text-2xl font-bold text-gray-900">Kiro2api-Node</h1>
-                <p class="text-gray-500 mt-2">请输入管理密钥登录</p>
-            </div>
-            <div id="loginError" class="hidden bg-red-50 text-red-600 px-4 py-3 rounded-lg mb-4 text-sm">密钥错误，请重试</div>
-            <input type="password" id="adminKeyInput" placeholder="管理密钥" 
-                class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition mb-4"
-                onkeypress="if(event.key==='Enter')login()">
-            <button onclick="login()" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-medium py-3 rounded-lg transition duration-200">登录</button>
-        </div>
-    </div>
+    <div id="loginPage" class="min-h-screen flex items-center justify-center animate-fadeIn"></div>
 
     <!-- 主面板 -->
     <div id="mainPanel" class="hidden">
         <!-- 顶部导航 -->
-        <nav class="bg-white border-b border-gray-200 sticky top-0 z-50">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div class="flex justify-between h-16">
-                    <div class="flex items-center">
-                        <div class="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center mr-3">
-                            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
-                            </svg>
-                        </div>
-                        <span class="text-xl font-bold text-gray-900">Kiro2api-Node</span>
-                    </div>
-                    <div class="flex items-center space-x-4">
-                        <button onclick="logout()" class="text-gray-500 hover:text-gray-700 text-sm font-medium transition">退出登录</button>
-                    </div>
-                </div>
-            </div>
-        </nav>
+        <div id="top-nav-bar"></div>
 
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-fadeIn">
             <!-- 统计卡片 -->
-            <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 mb-8">
-                <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-                    <div class="text-2xl font-bold text-gray-900" id="stat-active">-</div>
-                    <div class="text-sm text-gray-500">活跃账号</div>
-                </div>
-                <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-                    <div class="text-2xl font-bold text-yellow-500" id="stat-cooldown">-</div>
-                    <div class="text-sm text-gray-500">冷却中</div>
-                </div>
-                <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-                    <div class="text-2xl font-bold text-red-500" id="stat-invalid">-</div>
-                    <div class="text-sm text-gray-500">已失效</div>
-                </div>
-                <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-                    <div class="text-2xl font-bold text-gray-900" id="stat-requests">-</div>
-                    <div class="text-sm text-gray-500">总请求</div>
-                </div>
-                <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-                    <div class="text-2xl font-bold text-blue-500" id="stat-input">-</div>
-                    <div class="text-sm text-gray-500">输入Tokens</div>
-                </div>
-                <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-                    <div class="text-2xl font-bold text-green-500" id="stat-output">-</div>
-                    <div class="text-sm text-gray-500">输出Tokens</div>
-                </div>
-                <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-                    <div class="text-2xl font-bold text-purple-500" id="stat-uptime">-</div>
-                    <div class="text-sm text-gray-500">运行时间</div>
-                </div>
-            </div>
+            <div id="stats-grid"></div>
 
             <!-- 标签页 -->
             <div class="bg-white rounded-xl shadow-sm border border-gray-100 mb-6">
-                <div class="border-b border-gray-100">
-                    <nav class="flex space-x-8 px-6">
-                        <button onclick="switchTab('accounts')" class="tab-btn border-b-2 border-blue-500 text-blue-600 py-4 px-1 text-sm font-medium" data-tab="accounts">账号管理</button>
-                        <button onclick="switchTab('logs')" class="tab-btn border-b-2 border-transparent text-gray-500 hover:text-gray-700 py-4 px-1 text-sm font-medium" data-tab="logs">请求记录</button>
-                        <button onclick="switchTab('analytics')" class="tab-btn border-b-2 border-transparent text-gray-500 hover:text-gray-700 py-4 px-1 text-sm font-medium" data-tab="analytics">数据分析</button>
-                        <button onclick="switchTab('settings')" class="tab-btn border-b-2 border-transparent text-gray-500 hover:text-gray-700 py-4 px-1 text-sm font-medium" data-tab="settings">设置</button>
-                    </nav>
-                </div>
+                <div id="main-tabs"></div>
 
                 <!-- 账号管理 -->
                 <div id="tab-accounts" class="p-6 tab-content">
-                    <div class="flex flex-wrap items-center gap-3 mb-6">
-                        <button onclick="showModal('addModal')" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition flex items-center">
-                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-                            添加账号
-                        </button>
-                        <button onclick="showModal('importModal')" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition flex items-center">
-                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
-                            导入
-                        </button>
-                        <button onclick="refreshAllUsage()" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition flex items-center">
-                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-                            刷新全部额度
-                        </button>
-                        <button id="batchDeleteBtn" onclick="batchDeleteAccounts()" class="hidden bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition flex items-center">
-                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                            批量删除 (<span id="selectedCount">0</span>)
-                        </button>
-                        <select id="strategy" onchange="setStrategy(this.value)" class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            <option value="round-robin">轮询策略</option>
-                            <option value="random">随机策略</option>
-                            <option value="least-used">最少使用</option>
-                        </select>
-                        <button onclick="refresh()" class="border border-gray-200 hover:bg-gray-50 px-4 py-2 rounded-lg text-sm font-medium text-gray-600 transition">刷新</button>
-                    </div>
+                    <div id="accounts-toolbar"></div>
                     <div id="accounts-table" class="overflow-x-auto"></div>
                 </div>
 
                 <!-- 请求记录 -->
                 <div id="tab-logs" class="p-6 tab-content hidden">
-                    <div class="flex justify-between items-center mb-6">
-                        <h2 class="text-xl font-semibold text-gray-900">请求记录</h2>
-                        <div class="flex gap-3 items-center">
-                            <button onclick="loadLogs()" class="border border-gray-200 hover:bg-gray-50 px-4 py-2 rounded-lg text-sm font-medium text-gray-600 transition">刷新</button>
-                            <label class="flex items-center cursor-pointer">
-                                <input type="checkbox" id="autoRefreshToggle" onchange="toggleAutoRefresh()" class="sr-only peer">
-                                <div class="relative w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                                <span class="ml-3 text-sm font-medium text-gray-700">自动刷新</span>
-                            </label>
-                        </div>
-                    </div>
-                    <div id="logs-table" class="overflow-x-auto"></div>
-                    
-                    <!-- 分页器 -->
-                    <div id="logs-pagination" class="flex justify-between items-center mt-4 pt-4 border-t border-gray-200">
-                        <div class="flex items-center gap-4">
-                            <span id="totalRecords" class="text-sm text-gray-600">共 0 条记录</span>
-                            <div class="flex items-center gap-2">
-                                <span class="text-sm text-gray-600">每页显示：</span>
-                                <select id="pageSizeSelect" onchange="changePageSize()" class="border border-gray-300 rounded px-2 py-1 text-sm">
-                                    <option value="20">20</option>
-                                    <option value="50">50</option>
-                                    <option value="100">100</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <button id="prevPageBtn" onclick="changePage(-1)" class="px-3 py-1 border border-gray-300 rounded text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">上一页</button>
-                            <span id="pageInfo" class="text-sm text-gray-600">第 1 页 / 共 1 页</span>
-                            <button id="nextPageBtn" onclick="changePage(1)" class="px-3 py-1 border border-gray-300 rounded text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">下一页</button>
-                        </div>
-                    </div>
+                    <div id="logs-toolbar"></div>
                 </div>
 
                 <!-- 数据分析 -->
                 <div id="tab-analytics" class="p-6 tab-content hidden">
                     <div class="flex justify-between items-center mb-6">
                         <h2 class="text-xl font-semibold text-gray-900">数据分析</h2>
-                        <div class="flex gap-2">
-                            <button onclick="loadAnalytics('24h')" class="time-range-btn bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-medium transition" data-range="24h">24小时</button>
-                            <button onclick="loadAnalytics('7d')" class="time-range-btn bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium transition" data-range="7d">7天</button>
-                        </div>
                     </div>
-                    
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        <!-- 按模型统计（堆叠面积图） -->
-                        <div class="bg-white rounded-lg shadow p-6">
-                            <h3 class="text-lg font-semibold text-gray-900 mb-4">按模型统计</h3>
-                            <div class="h-80">
-                                <canvas id="modelChart"></canvas>
-                            </div>
-                        </div>
-                        
-                        <!-- 成功率（环形图） -->
-                        <div class="bg-white rounded-lg shadow p-6">
-                            <h3 class="text-lg font-semibold text-gray-900 mb-4">请求成功率</h3>
-                            <div class="h-80">
-                                <canvas id="successRateChart"></canvas>
-                            </div>
-                        </div>
-                        
-                        <!-- Token 消耗趋势（双轴折线图） -->
-                        <div class="bg-white rounded-lg shadow p-6">
-                            <h3 class="text-lg font-semibold text-gray-900 mb-4">Token 消耗趋势</h3>
-                            <div class="h-80">
-                                <canvas id="tokenTrendsChart"></canvas>
-                            </div>
-                        </div>
-                        
-                        <!-- Top 10 账号（水平柱状图） -->
-                        <div class="bg-white rounded-lg shadow p-6">
-                            <h3 class="text-lg font-semibold text-gray-900 mb-4">Top 10 账号</h3>
-                            <div class="h-80">
-                                <canvas id="topAccountsChart"></canvas>
-                            </div>
-                        </div>
-                        
-                        <!-- 按 API 密钥统计 -->
-                        <div class="bg-white rounded-lg shadow p-6">
-                            <h3 class="text-lg font-semibold text-gray-900 mb-4">按 API 密钥统计</h3>
-                            <div class="h-80">
-                                <canvas id="apiKeyStatsChart"></canvas>
-                            </div>
-                        </div>
-                    </div>
+
+                    <div id="analytics-dashboard"></div>
                 </div>
 
                 <!-- 设置 -->
                 <div id="tab-settings" class="p-6 tab-content hidden">
-                    <!-- 子标签导航 -->
-                    <div class="mb-6 border-b border-gray-200">
-                        <nav class="flex space-x-8">
-                            <button onclick="switchSettingsTab('general')" id="settings-tab-general" class="settings-tab-btn py-2 px-1 border-b-2 border-blue-500 text-blue-600 font-medium text-sm">常规设置</button>
-                            <button onclick="switchSettingsTab('models')" id="settings-tab-models" class="settings-tab-btn py-2 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700 font-medium text-sm">模型管理</button>
-                            <button onclick="switchSettingsTab('mappings')" id="settings-tab-mappings" class="settings-tab-btn py-2 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700 font-medium text-sm">模型映射</button>
-                        </nav>
-                    </div>
-
-                    <!-- 常规设置 -->
-                    <div id="settings-content-general" class="settings-content">
-                        <div class="max-w-2xl">
-                            <!-- API 端点信息 -->
-                            <div class="mb-8 p-4 bg-gray-50 rounded-lg">
-                                <h3 class="text-lg font-semibold text-gray-900 mb-3">API 端点</h3>
-
-                                <div class="mb-4">
-                                    <p class="text-xs text-gray-500 mb-2 font-medium">Anthropic 格式</p>
-                                    <div class="space-y-2 font-mono text-sm">
-                                        <div class="flex items-center gap-2">
-                                            <span class="px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-medium">GET</span>
-                                            <span class="text-gray-700">/v1/models</span>
-                                            <button onclick="copyText(location.origin + '/v1/models')" class="text-blue-500 hover:text-blue-700 text-xs">复制</button>
-                                        </div>
-                                        <div class="flex items-center gap-2">
-                                            <span class="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium">POST</span>
-                                            <span class="text-gray-700">/v1/messages</span>
-                                            <button onclick="copyText(location.origin + '/v1/messages')" class="text-blue-500 hover:text-blue-700 text-xs">复制</button>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <p class="text-xs text-gray-500 mt-3">Base URL: <span class="text-gray-700" id="baseUrl"></span></p>
-                            </div>
-
-                            <div class="mb-8">
-                                <h3 class="text-lg font-semibold text-gray-900 mb-2">管理密钥</h3>
-                                <p class="text-sm text-gray-500 mb-4">用于登录管理面板</p>
-                                <div class="flex gap-3">
-                                    <input type="password" id="new-admin-key" placeholder="输入新的管理密钥" class="flex-1 max-w-xs px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                    <button onclick="changeAdminKey()" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition">修改密钥</button>
-                                </div>
-                            </div>
-
-                            <div>
-                                <h3 class="text-lg font-semibold text-gray-900 mb-2">API 密钥</h3>
-                                <p class="text-sm text-gray-500 mb-4">用于 API 调用认证，支持多个</p>
-                                <div class="flex gap-3 mb-4">
-                                    <button onclick="showModal('createApiKeyModal')" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition">创建密钥</button>
-                                    <button onclick="loadApiKeys()" class="border border-gray-200 hover:bg-gray-50 px-4 py-2 rounded-lg text-sm font-medium text-gray-600 transition">刷新</button>
-                                </div>
-                                <div id="api-keys-list"></div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- 模型管理 -->
-                    <div id="settings-content-models" class="settings-content hidden">
-                        <div class="mb-4 flex justify-between items-center">
-                            <h3 class="text-lg font-semibold text-gray-900">模型列表</h3>
-                            <div class="flex gap-2">
-                                <button onclick="showModal('addModelModal')" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition">添加模型</button>
-                                <button onclick="resetModels()" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition">重置默认</button>
-                                <button onclick="loadModels()" class="border border-gray-200 hover:bg-gray-50 px-4 py-2 rounded-lg text-sm font-medium text-gray-600 transition">刷新</button>
-                            </div>
-                        </div>
-                        <div id="models-table" class="bg-white rounded-lg shadow overflow-hidden"></div>
-                    </div>
-
-                    <!-- 模型映射 -->
-                    <div id="settings-content-mappings" class="settings-content hidden">
-                        <div class="mb-4 flex justify-between items-center">
-                            <h3 class="text-lg font-semibold text-gray-900">映射规则</h3>
-                            <div class="flex gap-2">
-                                <button onclick="showModal('addMappingModal')" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition">添加映射</button>
-                                <button onclick="resetMappings()" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition">重置默认</button>
-                                <button onclick="loadMappings()" class="border border-gray-200 hover:bg-gray-50 px-4 py-2 rounded-lg text-sm font-medium text-gray-600 transition">刷新</button>
-                            </div>
-                        </div>
-                        <div id="mappings-table" class="bg-white rounded-lg shadow overflow-hidden"></div>
-                    </div>
+                    <div id="settings-panel"></div>
                 </div>
             </div>
         </div>
@@ -553,26 +325,18 @@
         </div>
     </div>
 
-    <script>
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
         let adminKey = localStorage.getItem('kiro_admin_key') || '';
         let selectedAccounts = new Set();
         let autoRefreshInterval = null;
         let serverStartTime = null;
         let uptimeInterval = null;
 
-        function showToast(message, type = 'info') {
-            const container = document.getElementById('toast-container');
-            const colors = { success: 'bg-green-500', error: 'bg-red-500', info: 'bg-blue-500', warning: 'bg-yellow-500' };
-            const toast = document.createElement('div');
-            toast.className = `${colors[type]} text-white px-4 py-3 rounded-lg shadow-lg text-sm font-medium animate-slideIn`;
-            toast.textContent = message;
-            container.appendChild(toast);
-            setTimeout(() => { toast.classList.add('animate-slideOut'); setTimeout(() => toast.remove(), 300); }, 3000);
-        }
-
         function toggleAutoRefresh() {
-            const toggle = document.getElementById('autoRefreshToggle');
-            if (toggle.checked) {
+            autoRefreshEnabled = !autoRefreshEnabled;
+            if (autoRefreshEnabled) {
                 autoRefreshInterval = setInterval(() => {
                     loadLogs();
                 }, 5000);
@@ -584,6 +348,7 @@
                 }
                 showToast('已关闭自动刷新', 'info');
             }
+            renderLogsToolbar();
         }
 
         function startUptimeCounter() {
@@ -601,23 +366,6 @@
             }, 1000);
         }
 
-        async function fetchApi(url, options = {}) {
-            const res = await fetch(url, { ...options, headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + adminKey, ...options.headers } });
-            if (res.status === 401) { logout(); throw new Error('认证失败'); }
-            if (!res.ok && res.status !== 204) throw new Error(await res.text() || res.statusText);
-            return res.status === 204 ? null : res.json();
-        }
-
-        async function login() {
-            const key = document.getElementById('adminKeyInput').value.trim();
-            if (!key) { showToast('请输入管理密钥', 'warning'); return; }
-            try {
-                const res = await fetch('/api/status', { headers: { 'Authorization': 'Bearer ' + key } });
-                if (res.ok) { adminKey = key; localStorage.setItem('kiro_admin_key', key); showMainPanel(); showToast('登录成功', 'success'); }
-                else { document.getElementById('loginError').classList.remove('hidden'); }
-            } catch { document.getElementById('loginError').classList.remove('hidden'); }
-        }
-
         function logout() {
             if (autoRefreshInterval) {
                 clearInterval(autoRefreshInterval);
@@ -633,87 +381,180 @@
             document.getElementById('mainPanel').classList.add('hidden');
         }
 
+        let currentActiveTab = 'accounts';
+        let currentStrategy = 'round-robin';
+        let currentSettingsTab = 'general';
+        let autoRefreshEnabled = false;
+        let accountsTableRoot = null;
+        let logsTableRoot = null;
+        let currentAccountsData = [];
+        let topNavRoot = null;
+        let mainTabsRoot = null;
+        let accountsToolbarRoot = null;
+        let logsToolbarRoot = null;
+        let settingsPanelRoot = null;
+
         function showMainPanel() {
             document.getElementById('loginPage').classList.add('hidden');
             document.getElementById('mainPanel').classList.remove('hidden');
+
+            // 渲染 TopNavBar
+            const topNavContainer = document.getElementById('top-nav-bar');
+            if (topNavContainer) {
+                if (!topNavRoot) {
+                    topNavRoot = ReactDOM.createRoot(topNavContainer);
+                }
+                topNavRoot.render(<TopNavBar onLogout={logout} />);
+            }
+
+            // 渲染 MainTabs
+            const mainTabsContainer = document.getElementById('main-tabs');
+            if (mainTabsContainer) {
+                if (!mainTabsRoot) {
+                    mainTabsRoot = ReactDOM.createRoot(mainTabsContainer);
+                }
+                mainTabsRoot.render(<MainTabs activeTab={currentActiveTab} onTabChange={switchTab} />);
+            }
+
+            // 渲染React统计卡片
+            const statsGridRoot = document.getElementById('stats-grid');
+            if (statsGridRoot && !statsGridRoot.hasChildNodes()) {
+                const root = ReactDOM.createRoot(statsGridRoot);
+                root.render(<StatsGrid />);
+            }
+
+            // 渲染 AccountsToolbar
+            renderAccountsToolbar();
+            
+            // 渲染 LogsToolbar
+            renderLogsToolbar();
+            
+            // 渲染 SettingsPanel
+            renderSettingsPanel();
+
             refresh();
         }
 
-        function formatUptime(secs) {
-            const h = Math.floor(secs / 3600), m = Math.floor((secs % 3600) / 60);
-            return h > 0 ? `${h}h ${m}m` : `${m}m ${secs % 60}s`;
+        function renderMainTabs() {
+            const mainTabsContainer = document.getElementById('main-tabs');
+            if (mainTabsContainer) {
+                if (!mainTabsRoot) {
+                    mainTabsRoot = ReactDOM.createRoot(mainTabsContainer);
+                }
+                mainTabsRoot.render(<MainTabs activeTab={currentActiveTab} onTabChange={switchTab} />);
+            }
         }
 
-        function formatNumber(n) {
-            if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
-            if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
-            return n.toString();
+        function renderAccountsToolbar() {
+            const toolbarContainer = document.getElementById('accounts-toolbar');
+            if (toolbarContainer) {
+                if (!accountsToolbarRoot) {
+                    accountsToolbarRoot = ReactDOM.createRoot(toolbarContainer);
+                }
+                accountsToolbarRoot.render(<AccountsToolbar 
+                    onAdd={() => showModal('addModal')}
+                    onImport={() => showModal('importModal')}
+                    onRefreshAll={refreshAllUsage}
+                    onBatchDelete={batchDeleteAccounts}
+                    selectedCount={selectedAccounts.size}
+                    strategy={currentStrategy}
+                    onStrategyChange={setStrategy}
+                    onRefresh={refresh}
+                />);
+            }
+        }
+
+        function renderLogsToolbar() {
+            const toolbarContainer = document.getElementById('logs-toolbar');
+            if (toolbarContainer) {
+                if (!logsToolbarRoot) {
+                    logsToolbarRoot = ReactDOM.createRoot(toolbarContainer);
+                }
+                logsToolbarRoot.render(<LogsToolbar 
+                    onRefresh={loadLogs}
+                    autoRefresh={autoRefreshEnabled}
+                    onToggleAutoRefresh={toggleAutoRefresh}
+                    currentPage={currentPage}
+                    pageSize={currentPageSize}
+                    totalPages={totalPages}
+                    totalRecords={totalRecords}
+                    onPageChange={changePage}
+                    onPageSizeChange={changePageSize}
+                />);
+            }
+        }
+
+        function renderSettingsPanel() {
+            const panelContainer = document.getElementById('settings-panel');
+            if (panelContainer) {
+                if (!settingsPanelRoot) {
+                    settingsPanelRoot = ReactDOM.createRoot(panelContainer);
+                }
+                settingsPanelRoot.render(<SettingsPanel 
+                    activeSubTab={currentSettingsTab}
+                    onSubTabChange={switchSettingsTab}
+                    baseUrl={location.origin}
+                    onChangeAdminKey={changeAdminKey}
+                    onCreateApiKey={() => showModal('createApiKeyModal')}
+                    onLoadApiKeys={loadApiKeys}
+                    onAddModel={() => showModal('addModelModal')}
+                    onResetModels={resetModels}
+                    onLoadModels={loadModels}
+                    onAddMapping={() => showModal('addMappingModal')}
+                    onResetMappings={resetMappings}
+                    onLoadMappings={loadMappings}
+                />);
+            }
+        }
+
+        function renderAccountsTable(accounts) {
+            currentAccountsData = accounts;
+            const tableRoot = document.getElementById('accounts-table');
+            if (tableRoot) {
+                if (!accountsTableRoot) {
+                    accountsTableRoot = ReactDOM.createRoot(tableRoot);
+                }
+                accountsTableRoot.render(<AccountsTable 
+                    accounts={accounts}
+                    selectedAccounts={selectedAccounts}
+                    onToggleSelect={toggleSelect}
+                    onSelectAll={toggleSelectAll}
+                    onRefreshUsage={refreshUsage}
+                    onEnable={enableAccount}
+                    onDisable={disableAccount}
+                    onRemove={removeAccount}
+                />);
+            }
+        }
+
+        function renderLogsTable(logs) {
+            const tableRoot = document.getElementById('logs-table');
+            if (tableRoot) {
+                if (!logsTableRoot) {
+                    logsTableRoot = ReactDOM.createRoot(tableRoot);
+                }
+                logsTableRoot.render(<LogsTable logs={logs} />);
+            }
         }
 
         async function loadStatus() {
+            // 统计数据现在由React StatsGrid组件自动管理
+            // 保留此函数以兼容其他调用，但不再更新DOM
             try {
                 const data = await fetchApi('/api/status');
                 serverStartTime = Date.now() - (data.uptimeSecs * 1000);
-                document.getElementById('stat-uptime').textContent = formatUptime(data.uptimeSecs);
-                document.getElementById('stat-active').textContent = data.pool.active;
-                document.getElementById('stat-cooldown').textContent = data.pool.cooldown;
-                document.getElementById('stat-invalid').textContent = data.pool.invalid;
-                document.getElementById('stat-requests').textContent = formatNumber(data.pool.totalRequests);
-                const stats = await fetchApi('/api/logs/stats');
-                document.getElementById('stat-input').textContent = formatNumber(stats.totalInputTokens || 0);
-                document.getElementById('stat-output').textContent = formatNumber(stats.totalOutputTokens || 0);
                 startUptimeCounter();
-            } catch (e) { console.error(e); }
+            } catch (e) {
+                console.error(e);
+            }
         }
 
         async function loadAccounts() {
             try {
                 const accounts = await fetchApi('/api/accounts');
-                const container = document.getElementById('accounts-table');
                 selectedAccounts.clear();
                 updateBatchDeleteBtn();
-                if (accounts.length === 0) {
-                    container.innerHTML = '<div class="text-center py-12 text-gray-500">暂无账号，点击上方按钮添加</div>';
-                    return;
-                }
-                container.innerHTML = `
-                    <table class="w-full">
-                        <thead>
-                            <tr class="bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                <th class="px-4 py-3 rounded-tl-lg w-10"><input type="checkbox" id="selectAll" onchange="toggleSelectAll(this.checked)" class="rounded border-gray-300 text-blue-500 focus:ring-blue-500"></th>
-                                <th class="px-4 py-3">名称</th>
-                                <th class="px-4 py-3">状态</th>
-                                <th class="px-4 py-3">额度</th>
-                                <th class="px-4 py-3">请求</th>
-                                <th class="px-4 py-3">错误</th>
-                                <th class="px-4 py-3 rounded-tr-lg">操作</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-100">
-                            ${accounts.map((a, i) => `
-                                <tr class="hover:bg-gray-50 transition ${i % 2 === 1 ? 'bg-gray-50/50' : ''}">
-                                    <td class="px-4 py-4"><input type="checkbox" data-id="${a.id}" onchange="toggleSelect('${a.id}', this.checked)" class="account-checkbox rounded border-gray-300 text-blue-500 focus:ring-blue-500"></td>
-                                    <td class="px-4 py-4">
-                                        <div class="font-medium text-gray-900">${a.name}</div>
-                                        ${a.usage?.userEmail ? `<div class="text-xs text-gray-500">${a.usage.userEmail}</div>` : ''}
-                                    </td>
-                                    <td class="px-4 py-4">${formatStatus(a.status)}</td>
-                                    <td class="px-4 py-4">${formatUsage(a.usage)}</td>
-                                    <td class="px-4 py-4 text-gray-600">${a.requestCount}</td>
-                                    <td class="px-4 py-4 text-gray-600">${a.errorCount}</td>
-                                    <td class="px-4 py-4">
-                                        <div class="flex items-center gap-2">
-                                            <button onclick="refreshUsage('${a.id}')" class="text-blue-500 hover:text-blue-700 text-sm" title="刷新额度">🔄</button>
-                                            ${a.status === 'disabled' 
-                                                ? `<button onclick="enableAccount('${a.id}')" class="text-green-500 hover:text-green-700 text-sm font-medium">启用</button>`
-                                                : `<button onclick="disableAccount('${a.id}')" class="text-gray-500 hover:text-gray-700 text-sm font-medium">禁用</button>`}
-                                            <button onclick="removeAccount('${a.id}')" class="text-red-500 hover:text-red-700 text-sm font-medium">删除</button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>`;
+                renderAccountsTable(accounts);
             } catch (e) { console.error(e); }
         }
 
@@ -721,21 +562,21 @@
             if (checked) selectedAccounts.add(id);
             else selectedAccounts.delete(id);
             updateBatchDeleteBtn();
+            loadAccounts();
         }
 
         function toggleSelectAll(checked) {
-            document.querySelectorAll('.account-checkbox').forEach(cb => {
-                cb.checked = checked;
-                if (checked) selectedAccounts.add(cb.dataset.id);
-                else selectedAccounts.delete(cb.dataset.id);
+            const accounts = window.currentAccountsData || [];
+            accounts.forEach(acc => {
+                if (checked) selectedAccounts.add(acc.id);
+                else selectedAccounts.delete(acc.id);
             });
             updateBatchDeleteBtn();
+            loadAccounts();
         }
 
         function updateBatchDeleteBtn() {
-            const btn = document.getElementById('batchDeleteBtn');
-            document.getElementById('selectedCount').textContent = selectedAccounts.size;
-            btn.classList.toggle('hidden', selectedAccounts.size === 0);
+            renderAccountsToolbar();
         }
 
         async function batchDeleteAccounts() {
@@ -754,21 +595,6 @@
         let totalPages = 1;
         let totalRecords = 0;
 
-        function formatStatus(status) {
-            const styles = { active: 'bg-green-100 text-green-700', cooldown: 'bg-yellow-100 text-yellow-700', invalid: 'bg-red-100 text-red-700', disabled: 'bg-gray-100 text-gray-700' };
-            return `<span class="px-2 py-1 rounded-full text-xs font-medium ${styles[status] || styles.disabled}">${status}</span>`;
-        }
-
-        function formatUsage(usage) {
-            if (!usage) return '<span class="text-gray-400 text-sm">未知</span>';
-            if (usage.error) return `<span class="text-red-500 text-sm" title="${usage.error}">错误</span>`;
-            const used = usage.currentUsage || 0, limit = usage.usageLimit || 0, available = usage.available || 0;
-            const percent = limit > 0 ? Math.round((used / limit) * 100) : 0;
-            const barColor = percent > 90 ? 'bg-red-500' : percent > 70 ? 'bg-yellow-500' : 'bg-green-500';
-            const textColor = percent > 90 ? 'text-red-600' : percent > 70 ? 'text-yellow-600' : 'text-green-600';
-            return `<div class="w-32"><div class="flex justify-between text-xs mb-1"><span class="${textColor} font-medium">${available.toFixed(1)}</span><span class="text-gray-400">/ ${limit.toFixed(0)}</span></div><div class="h-2 bg-gray-100 rounded-full overflow-hidden"><div class="${barColor} h-full rounded-full transition-all" style="width: ${percent}%"></div></div><div class="text-xs text-gray-400 mt-1">${percent}% 已用</div></div>`;
-        }
-
         async function refreshUsage(id) {
             try { await fetchApi(`/api/accounts/${id}/refresh-usage`, { method: 'POST' }); loadAccounts(); showToast('刷新成功', 'success'); }
             catch (e) { showToast('刷新失败: ' + e.message, 'error'); }
@@ -777,29 +603,6 @@
         async function refreshAllUsage() {
             try { showToast('正在刷新...', 'info'); await fetchApi('/api/accounts/refresh-all-usage', { method: 'POST' }); loadAccounts(); showToast('刷新完成！', 'success'); }
             catch (e) { showToast('刷新失败: ' + e.message, 'error'); }
-        }
-
-        function formatModelDisplay(model, upstreamModel) {
-            if (!model) return '-';
-
-            // 如果没有上游模型或两者相同，只显示一个
-            if (!upstreamModel || model === upstreamModel) {
-                return `<span class="text-gray-700">${model}</span>`;
-            }
-
-            // 如果不同，显示带 tooltip 的 tag
-            return `
-                <div class="group relative inline-block">
-                    <span class="px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-700 cursor-help border border-blue-200">
-                        ${model}
-                    </span>
-                    <div class="invisible group-hover:visible absolute z-10 w-48 px-3 py-2 text-xs text-white bg-gray-900 rounded-lg shadow-lg left-full ml-2 top-1/2 -translate-y-1/2 whitespace-normal">
-                        <div class="font-semibold mb-1">上游模型（Kiro）：</div>
-                        <div class="font-mono">${upstreamModel}</div>
-                        <div class="absolute w-2 h-2 bg-gray-900 transform rotate-45 -left-1 top-1/2 -translate-y-1/2"></div>
-                    </div>
-                </div>
-            `;
         }
 
         async function loadLogs() {
@@ -811,48 +614,13 @@
                 totalPages = pagination.totalPages || 1;
                 totalRecords = pagination.total || 0;
                 
-                const container = document.getElementById('logs-table');
-                if (!logs || logs.length === 0) { 
-                    container.innerHTML = '<div class="text-center py-12 text-gray-500">暂无请求记录</div>'; 
-                    updatePaginationUI();
-                    return; 
-                }
-                 container.innerHTML = `
-                    <table class="w-full">
-                        <thead><tr class="bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            <th class="px-4 py-3 rounded-tl-lg">时间</th><th class="px-4 py-3">账号</th><th class="px-4 py-3">类型</th><th class="px-4 py-3">模型</th><th class="px-4 py-3">密钥</th><th class="px-4 py-3">输入</th><th class="px-4 py-3">输出</th><th class="px-4 py-3">耗时</th><th class="px-4 py-3 rounded-tr-lg">状态</th>
-                        </tr></thead>
-                        <tbody class="divide-y divide-gray-100">
-                            ${logs.map((l, i) => {
-                                const streamTag = l.stream === null 
-                                    ? '<span class="text-gray-400">--</span>' 
-                                    : l.stream === 1 
-                                        ? '<span class="px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700">流式</span>' 
-                                        : '<span class="px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700">非流式</span>';
-                                return `<tr class="hover:bg-gray-50 transition ${i % 2 === 1 ? 'bg-gray-50/50' : ''}">
-                                    <td class="px-4 py-3 text-sm text-gray-600">${new Date(l.timestamp).toLocaleString()}</td>
-                                    <td class="px-4 py-3 text-sm text-gray-900">${l.accountName}</td>
-                                    <td class="px-4 py-3">${streamTag}</td>
-                                    <td class="px-4 py-3 text-xs text-gray-500">${formatModelDisplay(l.model, l.upstreamModel)}</td>
-                                    <td class="px-4 py-3 text-xs text-gray-600">${l.apiKeyName || '<span class="text-gray-400">--</span>'}</td>
-                                    <td class="px-4 py-3 text-sm text-gray-600">${l.inputTokens || 0}</td>
-                                    <td class="px-4 py-3 text-sm text-gray-600">${l.outputTokens || 0}</td>
-                                    <td class="px-4 py-3 text-sm text-gray-600">${l.durationMs}ms</td>
-                                    <td class="px-4 py-3">${l.success ? '<span class="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">成功</span>' : '<span class="px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700">失败</span>'}</td>
-                                </tr>`;
-                            }).join('')}
-                        </tbody>
-                    </table>`;
+                renderLogsTable(logs);
                 updatePaginationUI();
             } catch (e) { showToast('加载失败: ' + e.message, 'error'); }
         }
 
         function updatePaginationUI() {
-            document.getElementById('pageInfo').textContent = `第 ${currentPage} 页 / 共 ${totalPages} 页`;
-            document.getElementById('totalRecords').textContent = `共 ${totalRecords} 条记录`;
-            document.getElementById('prevPageBtn').disabled = currentPage <= 1;
-            document.getElementById('nextPageBtn').disabled = currentPage >= totalPages;
-            document.getElementById('pageSizeSelect').value = currentPageSize;
+            renderLogsToolbar();
         }
 
         function changePage(delta) {
@@ -862,26 +630,33 @@
             loadLogs();
         }
 
-        function changePageSize() {
-            currentPageSize = parseInt(document.getElementById('pageSizeSelect').value);
-            currentPage = 1; // 重置到第一页
+        function changePageSize(size) {
+            currentPageSize = size;
+            currentPage = 1;
             loadLogs();
         }
 
         async function loadStrategy() {
-            try { const data = await fetchApi('/api/strategy'); document.getElementById('strategy').value = data.strategy; }
+            try { 
+                const data = await fetchApi('/api/strategy'); 
+                currentStrategy = data.strategy;
+                renderAccountsToolbar();
+            }
             catch (e) { console.error(e); }
         }
 
         async function setStrategy(value) {
-            try { await fetchApi('/api/strategy', { method: 'POST', body: JSON.stringify({ strategy: value }) }); showToast('策略已更新', 'success'); }
+            try { 
+                await fetchApi('/api/strategy', { method: 'POST', body: JSON.stringify({ strategy: value }) }); 
+                currentStrategy = value;
+                showToast('策略已更新', 'success'); 
+            }
             catch (e) { showToast('设置失败: ' + e.message, 'error'); }
         }
 
         function switchTab(tab) {
-            document.querySelectorAll('.tab-btn').forEach(t => { t.classList.remove('border-blue-500', 'text-blue-600'); t.classList.add('border-transparent', 'text-gray-500'); });
-            document.querySelector(`.tab-btn[data-tab="${tab}"]`).classList.remove('border-transparent', 'text-gray-500');
-            document.querySelector(`.tab-btn[data-tab="${tab}"]`).classList.add('border-blue-500', 'text-blue-600');
+            currentActiveTab = tab;
+            renderMainTabs();
             document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
             document.getElementById('tab-' + tab).classList.remove('hidden');
             if (tab === 'logs') {
@@ -896,12 +671,17 @@
                     autoRefreshInterval = null;
                 }
             }
-            if (tab === 'analytics') { loadAnalytics('24h'); }
+            if (tab === 'analytics') {
+                // 渲染React图表组件
+                const dashboardRoot = document.getElementById('analytics-dashboard');
+                if (dashboardRoot && !dashboardRoot.hasChildNodes()) {
+                    const root = ReactDOM.createRoot(dashboardRoot);
+                    root.render(<AnalyticsDashboard />);
+                }
+            }
             if (tab === 'settings') { loadApiKeys(); document.getElementById('baseUrl').textContent = location.origin; }
         }
 
-        function showModal(id) { document.getElementById(id).classList.remove('hidden'); }
-        function hideModal(id) { document.getElementById(id).classList.add('hidden'); }
         function toggleIdcFields() { document.getElementById('idc-fields').classList.toggle('hidden', document.getElementById('acc-auth').value !== 'idc'); }
 
         async function addAccount() {
@@ -1317,15 +1097,6 @@
             });
         }
 
-        function formatNumber(num) {
-            if (num >= 1000000) {
-                return (num / 1000000).toFixed(1) + 'M';
-            } else if (num >= 1000) {
-                return (num / 1000).toFixed(1) + 'K';
-            }
-            return num.toString();
-        }
-
         function renderTopAccountsChart(data) {
             const ctx = document.getElementById('topAccountsChart');
             if (!ctx) return;
@@ -1481,21 +1252,16 @@
 
         // ============ 设置标签切换 ============
         function switchSettingsTab(tab) {
-            // 更新标签按钮样式
-            document.querySelectorAll('.settings-tab-btn').forEach(btn => {
-                btn.classList.remove('border-blue-500', 'text-blue-600');
-                btn.classList.add('border-transparent', 'text-gray-500');
-            });
-            document.getElementById(`settings-tab-${tab}`).classList.remove('border-transparent', 'text-gray-500');
-            document.getElementById(`settings-tab-${tab}`).classList.add('border-blue-500', 'text-blue-600');
-
-            // 切换内容
-            document.querySelectorAll('.settings-content').forEach(content => content.classList.add('hidden'));
-            document.getElementById(`settings-content-${tab}`).classList.remove('hidden');
-
-            // 加载对应数据
-            if (tab === 'models') loadModels();
-            if (tab === 'mappings') loadMappings();
+            currentSettingsTab = tab;
+            renderSettingsPanel();
+            if (tab === 'general') {
+                document.getElementById('baseUrl').textContent = location.origin;
+                loadApiKeys();
+            } else if (tab === 'models') {
+                loadModels();
+            } else if (tab === 'mappings') {
+                loadMappings();
+            }
         }
 
         // ============ 模型管理 ============
@@ -1816,9 +1582,26 @@
 
         (async () => {
             if (adminKey) {
-                try { const res = await fetch('/api/status', { headers: { 'Authorization': 'Bearer ' + adminKey } }); if (res.ok) { showMainPanel(); return; } } catch {}
+                try {
+                    const res = await fetch('/api/status', { headers: { 'Authorization': 'Bearer ' + adminKey } });
+                    if (res.ok) {
+                        showMainPanel();
+                        return;
+                    } else {
+                        adminKey = '';
+                        localStorage.removeItem('kiro_admin_key');
+                    }
+                } catch {}
             }
             document.getElementById('loginPage').classList.remove('hidden');
+            const loginPageRoot = document.getElementById('loginPage');
+            if (loginPageRoot) {
+                const root = ReactDOM.createRoot(loginPageRoot);
+                root.render(<LoginPage onLoginSuccess={() => {
+                    showMainPanel();
+                    showToast('登录成功', 'success');
+                }} />);
+            }
         })();
 
         setInterval(() => { if (adminKey && !document.getElementById('mainPanel').classList.contains('hidden')) { loadStatus(); loadAccounts(); } }, 5000);
