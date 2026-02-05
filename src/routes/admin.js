@@ -186,15 +186,29 @@ export function createAdminRouter(state) {
     res.json({ success: true });
   });
 
-  // GET /api/logs
+  // GET /api/logs - 分页获取日志
   router.get('/logs', (req, res) => {
-    res.json(state.accountPool.getRecentLogs(100));
-  });
+    const page = parseInt(req.query.page) || 1;
+    const pageSize = parseInt(req.query.pageSize) || 20;
+    const offset = (page - 1) * pageSize;
 
-  // DELETE /api/logs - 清空日志
-  router.delete('/logs', async (req, res) => {
-    await state.accountPool.clearLogs();
-    res.json({ success: true });
+    // 验证pageSize
+    const validPageSizes = [20, 50, 100];
+    const finalPageSize = validPageSizes.includes(pageSize) ? pageSize : 20;
+
+    const logs = state.accountPool.getRecentLogs(finalPageSize, offset);
+    const stats = state.accountPool.getLogStats();
+    const totalLogs = stats.totalLogs || 0;
+
+    res.json({
+      data: logs,
+      pagination: {
+        page,
+        pageSize: finalPageSize,
+        total: totalLogs,
+        totalPages: Math.ceil(totalLogs / finalPageSize)
+      }
+    });
   });
 
   // GET /api/logs/stats

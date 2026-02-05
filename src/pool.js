@@ -287,17 +287,11 @@ export class AccountPool {
     }
   }
 
-  getRecentLogs(n = 100) {
+  getRecentLogs(limit = 100, offset = 0) {
     if (this.db) {
-      return this.db.getRecentLogs(n);
+      return this.db.getRecentLogs(limit, offset);
     }
     return [];
-  }
-
-  async clearLogs() {
-    if (this.db) {
-      this.db.clearLogs();
-    }
   }
 
   async removeAccounts(ids) {

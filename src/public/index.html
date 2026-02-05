@@ -133,7 +133,7 @@
                 </div>
 
                 <!-- 请求记录 -->
-<div id="tab-logs" class="p-6 tab-content hidden">
+                <div id="tab-logs" class="p-6 tab-content hidden">
                     <div class="flex justify-between items-center mb-6">
                         <h2 class="text-xl font-semibold text-gray-900">请求记录</h2>
                         <div class="flex gap-3 items-center">
@@ -143,10 +143,29 @@
                                 <div class="relative w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
                                 <span class="ml-3 text-sm font-medium text-gray-700">自动刷新</span>
                             </label>
-                            <button onclick="clearLogs()" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition">清空记录</button>
                         </div>
                     </div>
                     <div id="logs-table" class="overflow-x-auto"></div>
+                    
+                    <!-- 分页器 -->
+                    <div id="logs-pagination" class="flex justify-between items-center mt-4 pt-4 border-t border-gray-200">
+                        <div class="flex items-center gap-4">
+                            <span id="totalRecords" class="text-sm text-gray-600">共 0 条记录</span>
+                            <div class="flex items-center gap-2">
+                                <span class="text-sm text-gray-600">每页显示：</span>
+                                <select id="pageSizeSelect" onchange="changePageSize()" class="border border-gray-300 rounded px-2 py-1 text-sm">
+                                    <option value="20">20</option>
+                                    <option value="50">50</option>
+                                    <option value="100">100</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button id="prevPageBtn" onclick="changePage(-1)" class="px-3 py-1 border border-gray-300 rounded text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">上一页</button>
+                            <span id="pageInfo" class="text-sm text-gray-600">第 1 页 / 共 1 页</span>
+                            <button id="nextPageBtn" onclick="changePage(1)" class="px-3 py-1 border border-gray-300 rounded text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">下一页</button>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- 数据分析 -->
@@ -495,15 +514,11 @@
             } catch (e) { showToast('批量删除失败: ' + e.message, 'error'); }
         }
 
-        async function clearLogs() {
-            if (!confirm('确定清空所有请求记录？')) return;
-            try {
-                await fetchApi('/api/logs', { method: 'DELETE' });
-                loadLogs();
-                loadStatus();
-                showToast('记录已清空', 'success');
-            } catch (e) { showToast('清空失败: ' + e.message, 'error'); }
-        }
+        // 分页状态
+        let currentPage = 1;
+        let currentPageSize = 20;
+        let totalPages = 1;
+        let totalRecords = 0;
 
         function formatStatus(status) {
             const styles = { active: 'bg-green-100 text-green-700', cooldown: 'bg-yellow-100 text-yellow-700', invalid: 'bg-red-100 text-red-700', disabled: 'bg-gray-100 text-gray-700' };
@@ -532,9 +547,19 @@
 
         async function loadLogs() {
             try {
-                const logs = await fetchApi('/api/logs');
+                const response = await fetchApi(`/api/logs?page=${currentPage}&pageSize=${currentPageSize}`);
+                const logs = response.data || [];
+                const pagination = response.pagination || {};
+                
+                totalPages = pagination.totalPages || 1;
+                totalRecords = pagination.total || 0;
+                
                 const container = document.getElementById('logs-table');
-                if (!logs || logs.length === 0) { container.innerHTML = '<div class="text-center py-12 text-gray-500">暂无请求记录</div>'; return; }
+                if (!logs || logs.length === 0) { 
+                    container.innerHTML = '<div class="text-center py-12 text-gray-500">暂无请求记录</div>'; 
+                    updatePaginationUI();
+                    return; 
+                }
                 container.innerHTML = `
                     <table class="w-full">
                         <thead><tr class="bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -552,7 +577,29 @@
                             </tr>`).join('')}
                         </tbody>
                     </table>`;
-            } catch (e) { console.error(e); }
+                updatePaginationUI();
+            } catch (e) { showToast('加载失败: ' + e.message, 'error'); }
+        }
+
+        function updatePaginationUI() {
+            document.getElementById('pageInfo').textContent = `第 ${currentPage} 页 / 共 ${totalPages} 页`;
+            document.getElementById('totalRecords').textContent = `共 ${totalRecords} 条记录`;
+            document.getElementById('prevPageBtn').disabled = currentPage <= 1;
+            document.getElementById('nextPageBtn').disabled = currentPage >= totalPages;
+            document.getElementById('pageSizeSelect').value = currentPageSize;
+        }
+
+        function changePage(delta) {
+            const newPage = currentPage + delta;
+            if (newPage < 1 || newPage > totalPages) return;
+            currentPage = newPage;
+            loadLogs();
+        }
+
+        function changePageSize() {
+            currentPageSize = parseInt(document.getElementById('pageSizeSelect').value);
+            currentPage = 1; // 重置到第一页
+            loadLogs();
         }
 
         async function loadStrategy() {
