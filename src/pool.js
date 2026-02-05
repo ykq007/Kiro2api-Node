@@ -282,7 +282,8 @@ export class AccountPool {
         outputTokens: log.outputTokens,
         durationMs: log.durationMs,
         success: log.success,
-        errorMessage: log.errorMessage
+        errorMessage: log.errorMessage,
+        apiKey: log.apiKey
       });
     }
   }

@@ -1,4 +1,16 @@
 import { Router } from 'express';
+import crypto from 'crypto';
+
+// 生成 API 密钥
+function generateApiKey(prefix = 'sk') {
+  const randomBytes = crypto.randomBytes(32);
+  const key = randomBytes
+    .toString('base64')
+    .replace(/\+/g, '')
+    .replace(/\//g, '')
+    .replace(/=/g, '');
+  return `${prefix}-${key}`;
+}
 
 // SSE 客户端连接池
 const sseClients = new Set();
@@ -240,18 +252,16 @@ export function createAdminRouter(state) {
 
   // GET /api/settings/api-keys
   router.get('/settings/api-keys', (req, res) => {
-    const keys = state.settingsManager.listApiKeys();
-    res.json(keys.map(key => ({ key })));
+    const keys = state.settingsManager.listApiKeysWithDetails();
+    res.json(keys);
   });
 
   // POST /api/settings/api-keys
   router.post('/settings/api-keys', async (req, res) => {
-    const { key } = req.body;
-    if (!key || key.length < 6) {
-      return res.status(400).json({ error: '密钥长度至少 6 位' });
-    }
-    const added = await state.settingsManager.addApiKey(key);
-    res.status(added ? 201 : 409).json({ success: added, error: added ? null : '密钥已存在' });
+    const { name } = req.body;
+    const key = generateApiKey();
+    const added = await state.settingsManager.addApiKey(key, name || null);
+    res.status(added ? 201 : 409).json({ success: added, key: added ? key : null, name: name || null, error: added ? null : '密钥创建失败' });
   });
 
   // DELETE /api/settings/api-keys
@@ -259,6 +269,14 @@ export function createAdminRouter(state) {
     const { key } = req.body;
     const removed = await state.settingsManager.removeApiKey(key);
     res.json({ success: removed, error: removed ? null : '无法删除，至少保留一个 API 密钥' });
+  });
+
+  // PATCH /api/settings/api-keys/:key - 更新密钥名称
+  router.patch('/settings/api-keys/:key', async (req, res) => {
+    const { key } = req.params;
+    const { name } = req.body;
+    const updated = await state.settingsManager.updateApiKeyName(key, name);
+    res.json({ success: updated, error: updated ? null : '密钥不存在' });
   });
 
   return router;

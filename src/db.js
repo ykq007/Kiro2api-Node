@@ -42,6 +42,7 @@ export class DatabaseManager {
         duration_ms INTEGER DEFAULT 0,
         success INTEGER DEFAULT 1,
         error_message TEXT,
+        api_key TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )
     `);
@@ -93,6 +94,7 @@ export class DatabaseManager {
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS api_keys (
         key TEXT PRIMARY KEY,
+        name TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )
     `);
@@ -127,6 +129,25 @@ export class DatabaseManager {
       END;
     `);
 
+    // 数据库迁移：添加新字段（如果不存在）
+    try {
+      this.db.exec(`ALTER TABLE api_keys ADD COLUMN name TEXT`);
+    } catch (e) {
+      // 列已存在，忽略错误
+    }
+
+    try {
+      this.db.exec(`ALTER TABLE request_logs ADD COLUMN api_key TEXT`);
+    } catch (e) {
+      // 列已存在，忽略错误
+    }
+
+    // 创建新索引
+    this.db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_api_keys_name ON api_keys(name);
+      CREATE INDEX IF NOT EXISTS idx_request_logs_api_key ON request_logs(api_key);
+    `);
+
     console.log('✓ 数据库表结构创建完成');
   }
 
@@ -135,8 +156,8 @@ export class DatabaseManager {
     const stmt = this.db.prepare(`
       INSERT INTO request_logs (
         timestamp, account_id, account_name, model, 
-        input_tokens, output_tokens, duration_ms, success, error_message
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        input_tokens, output_tokens, duration_ms, success, error_message, api_key
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     stmt.run(
@@ -148,7 +169,8 @@ export class DatabaseManager {
       log.outputTokens || 0,
       log.durationMs || 0,
       log.success ? 1 : 0,
-      log.errorMessage || null
+      log.errorMessage || null,
+      log.apiKey || null
     );
   }
 
@@ -537,9 +559,16 @@ export class DatabaseManager {
   }
 
   // 添加 API 密钥
-  addApiKey(key) {
-    const stmt = this.db.prepare('INSERT OR IGNORE INTO api_keys (key) VALUES (?)');
-    const result = stmt.run(key);
+  addApiKey(key, name = null) {
+    const stmt = this.db.prepare('INSERT OR IGNORE INTO api_keys (key, name) VALUES (?, ?)');
+    const result = stmt.run(key, name);
+    return result.changes > 0;
+  }
+
+  // 更新 API 密钥名称
+  updateApiKeyName(key, name) {
+    const stmt = this.db.prepare('UPDATE api_keys SET name = ? WHERE key = ?');
+    const result = stmt.run(name, key);
     return result.changes > 0;
   }
 
@@ -552,8 +581,54 @@ export class DatabaseManager {
 
   // 列出所有 API 密钥
   listApiKeys() {
-    const stmt = this.db.prepare('SELECT key FROM api_keys ORDER BY created_at');
-    return stmt.all().map(r => r.key);
+    const stmt = this.db.prepare(`
+      SELECT 
+        key, 
+        name, 
+        strftime('%s', created_at) * 1000 as createdAt 
+      FROM api_keys 
+      ORDER BY created_at DESC
+    `);
+    return stmt.all();
+  }
+
+  // 列出所有 API 密钥（含详细信息）
+  listApiKeysWithDetails() {
+    const stmt = this.db.prepare('SELECT key, name, created_at as createdAt FROM api_keys ORDER BY created_at DESC');
+    return stmt.all();
+  }
+
+  // 按 API 密钥统计
+  getStatsByApiKey(limit = 10, timeRange = '24h') {
+    let timeCondition = '';
+    switch (timeRange) {
+      case '24h':
+        timeCondition = "datetime(timestamp) >= datetime('now', '-1 day')";
+        break;
+      case '7d':
+        timeCondition = "datetime(timestamp) >= datetime('now', '-7 days')";
+        break;
+      case '30d':
+        timeCondition = "datetime(timestamp) >= datetime('now', '-30 days')";
+        break;
+      default:
+        timeCondition = '1=1';
+    }
+
+    const stmt = this.db.prepare(`
+      SELECT 
+        COALESCE(api_key, '(未命名)') as apiKey,
+        COUNT(*) as count,
+        SUM(input_tokens) as inputTokens,
+        SUM(output_tokens) as outputTokens,
+        SUM(CASE WHEN success = 1 THEN 1 ELSE 0 END) as successCount
+      FROM request_logs
+      WHERE ${timeCondition}
+      GROUP BY api_key
+      ORDER BY count DESC
+      LIMIT ?
+    `);
+    return stmt.all(limit);
   }
 
   // 关闭数据库连接

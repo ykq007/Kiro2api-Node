@@ -210,6 +210,14 @@
                                 <canvas id="topAccountsChart"></canvas>
                             </div>
                         </div>
+                        
+                        <!-- 按 API 密钥统计 -->
+                        <div class="bg-white rounded-lg shadow p-6">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-4">按 API 密钥统计</h3>
+                            <div class="h-80">
+                                <canvas id="apiKeyStatsChart"></canvas>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -252,8 +260,7 @@
                             <h3 class="text-lg font-semibold text-gray-900 mb-2">API 密钥</h3>
                             <p class="text-sm text-gray-500 mb-4">用于 API 调用认证，支持多个</p>
                             <div class="flex gap-3 mb-4">
-                                <input type="text" id="new-api-key" placeholder="输入新的 API 密钥" class="flex-1 max-w-md px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                <button onclick="addApiKey()" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition">添加</button>
+                                <button onclick="showModal('createApiKeyModal')" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition">创建密钥</button>
                                 <button onclick="loadApiKeys()" class="border border-gray-200 hover:bg-gray-50 px-4 py-2 rounded-lg text-sm font-medium text-gray-600 transition">刷新</button>
                             </div>
                             <div id="api-keys-list"></div>
@@ -315,6 +322,52 @@
             <div class="flex justify-end gap-3 p-6 border-t border-gray-100">
                 <button onclick="hideModal('importModal')" class="px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 transition">取消</button>
                 <button onclick="importAccounts()" class="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition">开始导入</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 创建 API 密钥弹窗 -->
+    <div id="createApiKeyModal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 animate-scaleIn">
+            <div class="flex items-center justify-between p-6 border-b border-gray-100">
+                <h3 class="text-lg font-semibold text-gray-900">创建 API 密钥</h3>
+                <button onclick="hideModal('createApiKeyModal')" class="text-gray-400 hover:text-gray-600">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+            <div class="p-6 space-y-4">
+                <input type="text" id="api-key-name" placeholder="密钥名称（可选）" class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <div id="generated-key-display" class="hidden">
+                    <p class="text-sm text-gray-600 mb-2">密钥已生成，请妥善保存：</p>
+                    <div class="flex gap-2">
+                        <input type="text" id="generated-key-value" readonly class="flex-1 px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg font-mono text-sm">
+                        <button onclick="copyGeneratedKey()" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition">复制</button>
+                    </div>
+                </div>
+            </div>
+            <div class="flex justify-end gap-3 p-6 border-t border-gray-100">
+                <button id="cancel-key-btn" onclick="hideModal('createApiKeyModal')" class="px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 transition">取消</button>
+                <button id="create-key-btn" onclick="createApiKey()" class="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition">创建</button>
+                <button id="confirm-key-btn" onclick="hideModal('createApiKeyModal')" class="hidden px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition">确认</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 重命名 API 密钥弹窗 -->
+    <div id="renameApiKeyModal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 animate-scaleIn">
+            <div class="flex items-center justify-between p-6 border-b border-gray-100">
+                <h3 class="text-lg font-semibold text-gray-900">重命名 API 密钥</h3>
+                <button onclick="hideModal('renameApiKeyModal')" class="text-gray-400 hover:text-gray-600">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+            <div class="p-6">
+                <input type="text" id="rename-key-name" placeholder="输入新的密钥名称" class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div class="flex justify-end gap-3 p-6 border-t border-gray-100">
+                <button onclick="hideModal('renameApiKeyModal')" class="px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 transition">取消</button>
+                <button onclick="confirmRenameApiKey()" class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition">确认</button>
             </div>
         </div>
     </div>
@@ -690,21 +743,128 @@
             catch (e) { showToast('修改失败: ' + e.message, 'error'); }
         }
 
+        function maskKey(key) {
+            if (key.length <= 10) return key;
+            return key.substring(0, 7) + '****' + key.substring(key.length - 4);
+        }
+
         async function loadApiKeys() {
             try {
                 const keys = await fetchApi('/api/settings/api-keys');
                 const container = document.getElementById('api-keys-list');
-                if (!keys || keys.length === 0) { container.innerHTML = '<div class="text-gray-500">暂无 API 密钥</div>'; return; }
-                container.innerHTML = `<table class="w-full"><thead><tr class="bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"><th class="px-4 py-3 rounded-tl-lg">密钥</th><th class="px-4 py-3 rounded-tr-lg">操作</th></tr></thead><tbody class="divide-y divide-gray-100">${keys.map(k => `<tr class="hover:bg-gray-50 transition"><td class="px-4 py-3 font-mono text-sm text-gray-900">${k.key}</td><td class="px-4 py-3"><button onclick="copyText('${k.key}')" class="text-blue-500 hover:text-blue-700 text-sm font-medium mr-3">复制</button><button onclick="removeApiKey('${k.key}')" class="text-red-500 hover:text-red-700 text-sm font-medium">删除</button></td></tr>`).join('')}</tbody></table>`;
+                if (!keys || keys.length === 0) { 
+                    container.innerHTML = '<div class="text-gray-500 text-sm">暂无 API 密钥</div>'; 
+                    return; 
+                }
+                container.innerHTML = `
+                    <table class="w-full">
+                        <thead>
+                            <tr class="bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th class="px-4 py-3 rounded-tl-lg">名称</th>
+                                <th class="px-4 py-3">密钥</th>
+                                <th class="px-4 py-3">创建时间</th>
+                                <th class="px-4 py-3 rounded-tr-lg text-right">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100">
+                            ${keys.map(item => `
+                                <tr class="hover:bg-gray-50 transition">
+                                    <td class="px-4 py-3">
+                                        <span class="font-medium text-gray-900">${item.name || '(未命名)'}</span>
+                                    </td>
+                                    <td class="px-4 py-3">
+                                        <span class="font-mono text-sm text-gray-600">${maskKey(item.key)}</span>
+                                    </td>
+                                    <td class="px-4 py-3">
+                                        <span class="text-sm text-gray-500">${new Date(item.createdAt).toLocaleString('zh-CN')}</span>
+                                    </td>
+                                    <td class="px-4 py-3 text-right">
+                                        <button onclick="editKeyName('${item.key}')" class="text-blue-500 hover:text-blue-700 text-sm font-medium mr-2">编辑</button>
+                                        <button onclick="copyText('${item.key}')" class="text-green-500 hover:text-green-700 text-sm font-medium mr-2">复制</button>
+                                        <button onclick="removeApiKey('${item.key}')" class="text-red-500 hover:text-red-700 text-sm font-medium">删除</button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
             } catch (e) { console.error(e); }
         }
 
-        async function addApiKey() {
-            const newKey = document.getElementById('new-api-key').value.trim();
-            if (!newKey) { showToast('请输入 API 密钥', 'warning'); return; }
-            if (newKey.length < 6) { showToast('密钥长度至少 6 位', 'warning'); return; }
-            try { await fetchApi('/api/settings/api-keys', { method: 'POST', body: JSON.stringify({ key: newKey }) }); document.getElementById('new-api-key').value = ''; loadApiKeys(); showToast('添加成功', 'success'); }
-            catch (e) { showToast('添加失败: ' + e.message, 'error'); }
+        async function createApiKey() {
+            const name = document.getElementById('api-key-name').value.trim();
+            const createBtn = document.getElementById('create-key-btn');
+            const cancelBtn = document.getElementById('cancel-key-btn');
+            const confirmBtn = document.getElementById('confirm-key-btn');
+            
+            createBtn.disabled = true;
+            createBtn.textContent = '创建中...';
+            
+            try {
+                const res = await fetchApi('/api/settings/api-keys', {
+                    method: 'POST',
+                    body: JSON.stringify({ name: name || null })
+                });
+                
+                if (res.success) {
+                    document.getElementById('generated-key-value').value = res.key;
+                    document.getElementById('generated-key-display').classList.remove('hidden');
+                    document.getElementById('api-key-name').disabled = true;
+                    
+                    // 隐藏创建和取消按钮，显示确认按钮
+                    createBtn.classList.add('hidden');
+                    cancelBtn.classList.add('hidden');
+                    confirmBtn.classList.remove('hidden');
+                    
+                    showToast('密钥创建成功', 'success');
+                    loadApiKeys();
+                }
+            } catch (e) {
+                showToast('创建失败: ' + e.message, 'error');
+                createBtn.disabled = false;
+                createBtn.textContent = '创建';
+            }
+        }
+
+        function copyGeneratedKey() {
+            const input = document.getElementById('generated-key-value');
+            input.select();
+            document.execCommand('copy');
+            showToast('密钥已复制', 'success');
+        }
+
+        let currentEditingKey = null;
+
+        function editKeyName(key) {
+            currentEditingKey = key;
+            document.getElementById('rename-key-name').value = '';
+            showModal('renameApiKeyModal');
+            // 聚焦输入框
+            setTimeout(() => {
+                document.getElementById('rename-key-name').focus();
+            }, 100);
+        }
+
+        async function confirmRenameApiKey() {
+            if (!currentEditingKey) return;
+            
+            const newName = document.getElementById('rename-key-name').value.trim();
+            
+            try {
+                const res = await fetchApi(`/api/settings/api-keys/${encodeURIComponent(currentEditingKey)}`, {
+                    method: 'PATCH',
+                    body: JSON.stringify({ name: newName || null })
+                });
+                
+                if (res.success) {
+                    showToast('名称已更新', 'success');
+                    hideModal('renameApiKeyModal');
+                    loadApiKeys();
+                    currentEditingKey = null;
+                }
+            } catch (e) {
+                showToast('更新失败: ' + e.message, 'error');
+            }
         }
 
         async function removeApiKey(key) {
@@ -736,18 +896,20 @@
 
             try {
                 // 并行获取所有统计数据
-                const [timeseriesData, modelData, accountData, successRateData, tokenData] = await Promise.all([
+                const [timeseriesData, modelData, accountData, successRateData, tokenData, apiKeyData] = await Promise.all([
                     fetchApi(`/api/stats/timeseries?range=${timeRange}`),
                     fetchApi(`/api/stats/by-model?range=${timeRange}`),
                     fetchApi(`/api/stats/by-account?limit=10&range=${timeRange}`),
                     fetchApi(`/api/stats/success-rate?range=${timeRange}`),
-                    fetchApi(`/api/stats/tokens?range=${timeRange}`)
+                    fetchApi(`/api/stats/tokens?range=${timeRange}`),
+                    fetchApi(`/api/stats/by-api-key?limit=10&range=${timeRange}`)
                 ]);
 
                 renderModelChart(timeseriesData.data);
                 renderSuccessRateChart(successRateData.data);
                 renderTokenTrendsChart(tokenData.data);
                 renderTopAccountsChart(accountData.data);
+                renderApiKeyStatsChart(apiKeyData.data);
             } catch (e) {
                 showToast('加载数据失败: ' + e.message, 'error');
             }
@@ -988,6 +1150,117 @@
                     scales: {
                         x: { beginAtZero: true, grid: { display: true } },
                         y: { grid: { display: false } }
+                    }
+                }
+            });
+        }
+
+        function renderApiKeyStatsChart(data) {
+            const ctx = document.getElementById('apiKeyStatsChart');
+            if (!ctx) return;
+
+            if (chartInstances.apiKeyStatsChart) {
+                chartInstances.apiKeyStatsChart.destroy();
+            }
+
+            if (!data || data.length === 0) {
+                ctx.parentElement.innerHTML = '<div class="flex items-center justify-center h-full text-gray-400 text-sm">暂无数据</div>';
+                return;
+            }
+
+            const labels = data.map(item => item.apiKey || '(未命名)');
+            const requestCounts = data.map(item => item.count || 0);
+            const inputTokens = data.map(item => item.inputTokens || 0);
+            const outputTokens = data.map(item => item.outputTokens || 0);
+            const successRates = data.map(item => {
+                const total = item.count || 0;
+                const success = item.successCount || 0;
+                return total > 0 ? ((success / total) * 100).toFixed(1) : 0;
+            });
+
+            chartInstances.apiKeyStatsChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: '请求数',
+                            data: requestCounts,
+                            backgroundColor: 'rgba(59, 130, 246, 0.8)',
+                            borderColor: 'rgb(59, 130, 246)',
+                            borderWidth: 1,
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: '成功率 (%)',
+                            data: successRates,
+                            backgroundColor: 'rgba(34, 197, 94, 0.8)',
+                            borderColor: 'rgb(34, 197, 94)',
+                            borderWidth: 1,
+                            yAxisID: 'y1'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
+                    },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                afterLabel: function(context) {
+                                    const index = context.dataIndex;
+                                    const input = inputTokens[index];
+                                    const output = outputTokens[index];
+                                    return `输入: ${input.toLocaleString()} tokens\n输出: ${output.toLocaleString()} tokens`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: {
+                                display: false
+                            },
+                            ticks: {
+                                maxRotation: 45,
+                                minRotation: 0,
+                                font: {
+                                    size: 11
+                                }
+                            }
+                        },
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            title: {
+                                display: true,
+                                text: '请求数'
+                            },
+                            beginAtZero: true
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            title: {
+                                display: true,
+                                text: '成功率 (%)'
+                            },
+                            beginAtZero: true,
+                            max: 100,
+                            grid: {
+                                drawOnChartArea: false
+                            }
+                        }
                     }
                 }
             });
