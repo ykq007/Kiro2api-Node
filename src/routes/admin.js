@@ -142,6 +142,16 @@ export function createAdminRouter(state) {
     }
   });
 
+  // DELETE /api/accounts/batch - 批量删除账号 (must be before /:id route)
+  router.delete('/accounts/batch', async (req, res) => {
+    const { ids } = req.body;
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: '请提供要删除的账号 ID 列表' });
+    }
+    const results = await state.accountPool.removeAccounts(ids);
+    res.json(results);
+  });
+
   // DELETE /api/accounts/:id
   router.delete('/accounts/:id', async (req, res) => {
     const removed = await state.accountPool.removeAccount(req.params.id);
@@ -226,16 +236,6 @@ export function createAdminRouter(state) {
   // GET /api/logs/stats
   router.get('/logs/stats', (req, res) => {
     res.json(state.accountPool.getLogStats());
-  });
-
-  // DELETE /api/accounts/batch - 批量删除账号
-  router.delete('/accounts/batch', async (req, res) => {
-    const { ids } = req.body;
-    if (!ids || !Array.isArray(ids) || ids.length === 0) {
-      return res.status(400).json({ error: '请提供要删除的账号 ID 列表' });
-    }
-    const results = await state.accountPool.removeAccounts(ids);
-    res.json(results);
   });
 
   // ============ 设置管理 API ============

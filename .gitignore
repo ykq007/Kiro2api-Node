@@ -1,6 +1,7 @@
 node_modules/
 data/
 .env
+.ace-tool/
 /.idea/
 /logs/
 /nul

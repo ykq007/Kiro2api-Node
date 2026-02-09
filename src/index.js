@@ -103,7 +103,19 @@ async function startServer() {
     app.use('/v1', createApiRouter(state));
 
     // 管理 API 路由 (需要 Admin Key 认证)
-    app.use('/api', createAdminRouter(state));
+    const adminApp = express();
+    // 禁用 ETag：避免触发 304（部分前端 fetch 封装会将 304 视为失败，导致 UI 停留旧状态）
+    adminApp.set('etag', false);
+    // 禁止缓存所有 /api/* 响应，避免账号列表读取到陈旧数据
+    adminApp.use((req, res, next) => {
+      res.setHeader('Cache-Control', 'no-store');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+      res.setHeader('Surrogate-Control', 'no-store');
+      next();
+    });
+    adminApp.use(createAdminRouter(state));
+    app.use('/api', adminApp);
 
     // 统计 API 路由 (需要 Admin Key 认证)
     app.use('/api/stats', createStatsRouter(state));
