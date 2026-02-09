@@ -8,10 +8,12 @@ window.AccountsTable = function(props) {
             <thead>
                 <tr className="bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     <th className="px-4 py-3 rounded-tl-lg w-10">
-                        <input 
-                            type="checkbox" 
-                            id="selectAll" 
-                            onChange={(e) => props.onSelectAll(e.target.checked)} 
+                        <input
+                            type="checkbox"
+                            id="selectAll"
+                            aria-label="Select all accounts"
+                            checked={props.accounts.length > 0 && props.accounts.every(a => props.selectedAccounts.has(a.id))}
+                            onChange={(e) => props.onSelectAll(e.target.checked)}
                             className="rounded border-gray-300 text-blue-500 focus:ring-blue-500"
                         />
                     </th>

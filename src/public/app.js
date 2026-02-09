@@ -214,13 +214,17 @@ const { useState, useEffect, useRef } = React;
         }
 
         function renderAccountsTable(accounts) {
+            if (!Array.isArray(accounts)) {
+                console.warn('renderAccountsTable: invalid accounts data, using empty array');
+                accounts = [];
+            }
             currentAccountsData = accounts;
             const tableRoot = document.getElementById('accounts-table');
             if (tableRoot) {
                 if (!accountsTableRoot) {
                     accountsTableRoot = ReactDOM.createRoot(tableRoot);
                 }
-                accountsTableRoot.render(<AccountsTable 
+                accountsTableRoot.render(<AccountsTable
                     accounts={accounts}
                     selectedAccounts={selectedAccounts}
                     onToggleSelect={toggleSelect}
@@ -258,7 +262,15 @@ const { useState, useEffect, useRef } = React;
         async function loadAccounts() {
             try {
                 const accounts = await fetchApi('/api/accounts');
-                selectedAccounts.clear();
+
+                // 智能清理：仅移除已不存在的账户 ID
+                const validIds = new Set(accounts.map(a => a.id));
+                for (const id of selectedAccounts) {
+                    if (!validIds.has(id)) {
+                        selectedAccounts.delete(id);
+                    }
+                }
+
                 updateBatchDeleteBtn();
                 renderAccountsTable(accounts);
             } catch (e) { console.error(e); }
@@ -268,17 +280,17 @@ const { useState, useEffect, useRef } = React;
             if (checked) selectedAccounts.add(id);
             else selectedAccounts.delete(id);
             updateBatchDeleteBtn();
-            loadAccounts();
+            renderAccountsTable(currentAccountsData);
         }
 
         function toggleSelectAll(checked) {
-            const accounts = window.currentAccountsData || [];
+            const accounts = currentAccountsData || [];
             accounts.forEach(acc => {
                 if (checked) selectedAccounts.add(acc.id);
                 else selectedAccounts.delete(acc.id);
             });
             updateBatchDeleteBtn();
-            loadAccounts();
+            renderAccountsTable(currentAccountsData);
         }
 
         function updateBatchDeleteBtn() {
