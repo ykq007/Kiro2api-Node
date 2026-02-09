@@ -10,8 +10,8 @@ services:
       - PORT=${PORT:-8080}
       - DATA_DIR=/app/data
       - REGION=us-east-1
-      - API_KEY=${API_KEY}
-      - ADMIN_KEY=${ADMIN_KEY}
+      - API_KEY=${API_KEY:-sk-ykq001}
+      - ADMIN_KEY=${ADMIN_KEY:-Yukequan96}
     volumes:
       - ./data:/app/data
     restart: unless-stopped
