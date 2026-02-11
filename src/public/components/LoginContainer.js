@@ -38,7 +38,7 @@ window.LoginContainer = function LoginContainer() {
     if (isLoading) {
         return (
             <div id="loginPage" className="min-h-screen flex items-center justify-center animate-fadeIn">
-                <div className="text-gray-500">加载中...</div>
+                <div className="text-slate-500">加载中...</div>
             </div>
         );
     }

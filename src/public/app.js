@@ -110,7 +110,11 @@ const { useState, useEffect, useRef } = React;
                 if (!topNavRoot) {
                     topNavRoot = ReactDOM.createRoot(topNavContainer);
                 }
-                topNavRoot.render(<TopNavBar onLogout={logout} />);
+                topNavRoot.render(<TopNavBar 
+                    activeTab={currentActiveTab} 
+                    onTabChange={switchTab} 
+                    onLogout={logout} 
+                />);
             }
 
             // 渲染 MainTabs
@@ -374,6 +378,16 @@ const { useState, useEffect, useRef } = React;
 
         function switchTab(tab) {
             currentActiveTab = tab;
+            
+            // Re-render TopNavBar to update active state
+            if (topNavRoot) {
+                topNavRoot.render(<TopNavBar 
+                    activeTab={currentActiveTab} 
+                    onTabChange={switchTab} 
+                    onLogout={logout} 
+                />);
+            }
+
             renderMainTabs();
             document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
             document.getElementById('tab-' + tab).classList.remove('hidden');
@@ -464,40 +478,51 @@ const { useState, useEffect, useRef } = React;
                 const keys = await fetchApi('/api/settings/api-keys');
                 const container = document.getElementById('api-keys-list');
                 if (!keys || keys.length === 0) { 
-                    container.innerHTML = '<div class="text-gray-500 text-sm">暂无 API 密钥</div>'; 
+                    container.innerHTML = '<div class="text-slate-500 dark:text-slate-400 text-sm py-4">暂无 API 密钥</div>'; 
                     return; 
                 }
                 container.innerHTML = `
-                    <table class="w-full">
-                        <thead>
-                            <tr class="bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                <th class="px-4 py-3 rounded-tl-lg">名称</th>
-                                <th class="px-4 py-3">密钥</th>
-                                <th class="px-4 py-3">创建时间</th>
-                                <th class="px-4 py-3 rounded-tr-lg text-right">操作</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-100">
-                            ${keys.map(item => `
-                                <tr class="hover:bg-gray-50 transition">
-                                    <td class="px-4 py-3">
-                                        <span class="font-medium text-gray-900">${item.name || '(未命名)'}</span>
-                                    </td>
-                                    <td class="px-4 py-3">
-                                        <span class="font-mono text-sm text-gray-600">${maskKey(item.key)}</span>
-                                    </td>
-                                    <td class="px-4 py-3">
-                                        <span class="text-sm text-gray-500">${new Date(item.createdAt).toLocaleString('zh-CN')}</span>
-                                    </td>
-                                    <td class="px-4 py-3 text-right">
-                                        <button onclick="editKeyName('${item.key}')" class="text-blue-500 hover:text-blue-700 text-sm font-medium mr-2">编辑</button>
-                                        <button onclick="copyText('${item.key}')" class="text-green-500 hover:text-green-700 text-sm font-medium mr-2">复制</button>
-                                        <button onclick="removeApiKey('${item.key}')" class="text-red-500 hover:text-red-700 text-sm font-medium">删除</button>
-                                    </td>
+                    <div class="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-800">
+                        <table class="w-full divide-y divide-slate-200 dark:divide-slate-800">
+                            <thead class="bg-slate-50 dark:bg-slate-800/50">
+                                <tr>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">名称</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">密钥</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">速率限制</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">每日配额</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">创建时间</th>
+                                    <th class="px-4 py-3 text-right text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">操作</th>
                                 </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody class="bg-white dark:bg-slate-900 divide-y divide-slate-200 dark:divide-slate-800">
+                                ${keys.map(item => `
+                                    <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <span class="font-medium text-slate-900 dark:text-white">${item.name || '(未命名)'}</span>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <span class="font-mono text-sm text-slate-600 dark:text-slate-300">${maskKey(item.key)}</span>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <span class="text-sm text-slate-600 dark:text-slate-300">${item.rateLimitRpm ? item.rateLimitRpm + ' RPM' : '无限制'}</span>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <span class="text-sm text-slate-600 dark:text-slate-300">${item.dailyTokenQuota ? item.dailyTokenQuota.toLocaleString() + ' tokens' : '无限制'}</span>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <span class="text-sm text-slate-500 dark:text-slate-400">${new Date(item.createdAt).toLocaleString('zh-CN')}</span>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap text-right">
+                                            <button onclick="editKeyLimits('${item.key}')" class="text-amber-600 hover:text-amber-800 dark:text-amber-400 dark:hover:text-amber-300 text-sm font-medium mr-3">限制</button>
+                                            <button onclick="editKeyName('${item.key}')" class="text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 text-sm font-medium mr-3">编辑</button>
+                                            <button onclick="copyText('${item.key}')" class="text-emerald-600 hover:text-emerald-800 dark:text-emerald-400 dark:hover:text-emerald-300 text-sm font-medium mr-3">复制</button>
+                                            <button onclick="removeApiKey('${item.key}')" class="text-rose-600 hover:text-rose-800 dark:text-rose-400 dark:hover:text-rose-300 text-sm font-medium">删除</button>
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
                 `;
             } catch (e) { console.error(e); }
         }
@@ -558,20 +583,43 @@ const { useState, useEffect, useRef } = React;
 
         async function confirmRenameApiKey() {
             if (!currentEditingKey) return;
-            
+
             const newName = document.getElementById('rename-key-name').value.trim();
-            
+
             try {
                 const res = await fetchApi(`/api/settings/api-keys/${encodeURIComponent(currentEditingKey)}`, {
                     method: 'PATCH',
                     body: JSON.stringify({ name: newName || null })
                 });
-                
+
                 if (res.success) {
                     showToast('名称已更新', 'success');
                     hideModal('renameApiKeyModal');
                     loadApiKeys();
                     currentEditingKey = null;
+                }
+            } catch (e) {
+                showToast('更新失败: ' + e.message, 'error');
+            }
+        }
+
+        async function editKeyLimits(key) {
+            const rpm = prompt('每分钟请求数限制 (RPM)，0 = 无限制:', '0');
+            if (rpm === null) return;
+            const dailyQuota = prompt('每日 Token 配额，0 = 无限制:', '0');
+            if (dailyQuota === null) return;
+
+            const rateLimitRpm = parseInt(rpm) || 0;
+            const dailyTokenQuota = parseInt(dailyQuota) || 0;
+
+            try {
+                const res = await fetchApi(`/api/settings/api-keys/${encodeURIComponent(key)}`, {
+                    method: 'PATCH',
+                    body: JSON.stringify({ rateLimitRpm, dailyTokenQuota })
+                });
+                if (res.success) {
+                    showToast('限制已更新', 'success');
+                    loadApiKeys();
                 }
             } catch (e) {
                 showToast('更新失败: ' + e.message, 'error');
@@ -597,11 +645,11 @@ const { useState, useEffect, useRef } = React;
             // 更新时间范围按钮样式
             document.querySelectorAll('.time-range-btn').forEach(btn => {
                 if (btn.dataset.range === timeRange) {
-                    btn.classList.remove('bg-gray-100', 'hover:bg-gray-200', 'text-gray-700');
-                    btn.classList.add('bg-blue-500', 'text-white');
+                    btn.classList.remove('bg-slate-100', 'hover:bg-slate-200', 'text-slate-700');
+                    btn.classList.add('bg-indigo-600', 'text-white');
                 } else {
-                    btn.classList.remove('bg-blue-500', 'text-white');
-                    btn.classList.add('bg-gray-100', 'hover:bg-gray-200', 'text-gray-700');
+                    btn.classList.remove('bg-indigo-600', 'text-white');
+                    btn.classList.add('bg-slate-100', 'hover:bg-slate-200', 'text-slate-700');
                 }
             });
 
@@ -665,18 +713,22 @@ const { useState, useEffect, useRef } = React;
             // 格式化时间标签
             const formattedLabels = hours.map(h => formatTimeLabel(h));
             
+            const isDark = document.documentElement.classList.contains('dark');
+            const colors = window.getChartColors ? window.getChartColors(isDark) : {};
+            const chartColors = colors.palette || ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316'];
+            
             // 生成数据集
-            const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316'];
             const datasets = Object.keys(modelMap).map((model, idx) => {
                 const modelData = hours.map(hour => {
                     const found = modelMap[model].find(d => d.hour === hour);
                     return found ? found.count : 0;
                 });
+                const color = chartColors[idx % chartColors.length];
                 return {
                     label: model,
                     data: modelData,
-                    backgroundColor: colors[idx % colors.length] + '40',
-                    borderColor: colors[idx % colors.length],
+                    backgroundColor: color + '40',
+                    borderColor: color,
                     borderWidth: 2,
                     fill: true,
                     tension: 0.4
@@ -691,12 +743,20 @@ const { useState, useEffect, useRef } = React;
                     maintainAspectRatio: false,
                     interaction: { mode: 'index', intersect: false },
                     plugins: {
-                        legend: { position: 'top' },
-                        tooltip: { mode: 'index', intersect: false }
+                        legend: { position: 'top', labels: { color: colors.text } },
+                        tooltip: { 
+                            mode: 'index', 
+                            intersect: false,
+                            backgroundColor: colors.background,
+                            titleColor: colors.text,
+                            bodyColor: colors.text,
+                            borderColor: colors.border,
+                            borderWidth: 1
+                        }
                     },
                     scales: {
-                        x: { stacked: true, grid: { display: false } },
-                        y: { stacked: true, beginAtZero: true }
+                        x: { stacked: true, grid: { display: false }, ticks: { color: colors.text } },
+                        y: { stacked: true, beginAtZero: true, grid: { color: colors.grid }, ticks: { color: colors.text } }
                     }
                 }
             });
@@ -714,22 +774,31 @@ const { useState, useEffect, useRef } = React;
             const failureCount = data.failureCount || 0;
             const total = successCount + failureCount;
 
+            const isDark = document.documentElement.classList.contains('dark');
+            const colors = window.getChartColors ? window.getChartColors(isDark) : {};
+
             chartInstances.successRateChart = new Chart(ctx, {
                 type: 'doughnut',
                 data: {
                     labels: ['成功', '失败'],
                     datasets: [{
                         data: [successCount, failureCount],
-                        backgroundColor: ['#10b981', '#ef4444'],
-                        borderWidth: 0
+                        backgroundColor: [colors.success || '#10b981', colors.danger || '#ef4444'],
+                        borderColor: colors.background || '#ffffff',
+                        borderWidth: 2
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: {
-                        legend: { position: 'bottom' },
+                        legend: { position: 'bottom', labels: { color: colors.text } },
                         tooltip: {
+                            backgroundColor: colors.background,
+                            titleColor: colors.text,
+                            bodyColor: colors.text,
+                            borderColor: colors.border,
+                            borderWidth: 1,
                             callbacks: {
                                 label: (context) => {
                                     const value = context.parsed;
@@ -756,6 +825,11 @@ const { useState, useEffect, useRef } = React;
             const inputTokens = data.map(d => d.inputTokens || 0);
             const outputTokens = data.map(d => d.outputTokens || 0);
 
+            const isDark = document.documentElement.classList.contains('dark');
+            const colors = window.getChartColors ? window.getChartColors(isDark) : {};
+            const infoColor = colors.info || '#3b82f6';
+            const successColor = colors.success || '#10b981';
+
             chartInstances.tokenTrendsChart = new Chart(ctx, {
                 type: 'line',
                 data: {
@@ -764,8 +838,8 @@ const { useState, useEffect, useRef } = React;
                         {
                             label: '输入 Tokens',
                             data: inputTokens,
-                            borderColor: '#3b82f6',
-                            backgroundColor: '#3b82f640',
+                            borderColor: infoColor,
+                            backgroundColor: infoColor + '40',
                             borderWidth: 2,
                             fill: true,
                             tension: 0.4,
@@ -774,8 +848,8 @@ const { useState, useEffect, useRef } = React;
                         {
                             label: '输出 Tokens',
                             data: outputTokens,
-                            borderColor: '#10b981',
-                            backgroundColor: '#10b98140',
+                            borderColor: successColor,
+                            backgroundColor: successColor + '40',
                             borderWidth: 2,
                             fill: true,
                             tension: 0.4,
@@ -788,10 +862,15 @@ const { useState, useEffect, useRef } = React;
                     maintainAspectRatio: false,
                     interaction: { mode: 'index', intersect: false },
                     plugins: {
-                        legend: { position: 'top' },
+                        legend: { position: 'top', labels: { color: colors.text } },
                         tooltip: {
                             mode: 'index',
                             intersect: false,
+                            backgroundColor: colors.background,
+                            titleColor: colors.text,
+                            bodyColor: colors.text,
+                            borderColor: colors.border,
+                            borderWidth: 1,
                             callbacks: {
                                 label: (context) => {
                                     const value = context.parsed.y;
@@ -801,12 +880,14 @@ const { useState, useEffect, useRef } = React;
                         }
                     },
                     scales: {
-                        x: { grid: { display: false } },
+                        x: { grid: { display: false }, ticks: { color: colors.text } },
                         y: {
                             type: 'linear',
                             position: 'left',
                             beginAtZero: true,
+                            grid: { color: colors.grid },
                             ticks: {
+                                color: colors.text,
                                 callback: (value) => formatNumber(value)
                             }
                         }
@@ -825,6 +906,9 @@ const { useState, useEffect, useRef } = React;
 
             const accounts = data.map(d => d.accountName);
             const counts = data.map(d => d.count);
+            
+            const isDark = document.documentElement.classList.contains('dark');
+            const colors = window.getChartColors ? window.getChartColors(isDark) : {};
 
             chartInstances.topAccountsChart = new Chart(ctx, {
                 type: 'bar',
@@ -833,7 +917,7 @@ const { useState, useEffect, useRef } = React;
                     datasets: [{
                         label: '请求次数',
                         data: counts,
-                        backgroundColor: '#3b82f6',
+                        backgroundColor: colors.info || '#3b82f6',
                         borderRadius: 6
                     }]
                 },
@@ -844,14 +928,19 @@ const { useState, useEffect, useRef } = React;
                     plugins: {
                         legend: { display: false },
                         tooltip: {
+                            backgroundColor: colors.background,
+                            titleColor: colors.text,
+                            bodyColor: colors.text,
+                            borderColor: colors.border,
+                            borderWidth: 1,
                             callbacks: {
                                 label: (context) => `请求次数: ${context.parsed.x}`
                             }
                         }
                     },
                     scales: {
-                        x: { beginAtZero: true, grid: { display: true } },
-                        y: { grid: { display: false } }
+                        x: { beginAtZero: true, grid: { display: true, color: colors.grid }, ticks: { color: colors.text } },
+                        y: { grid: { display: false }, ticks: { color: colors.text } }
                     }
                 }
             });
@@ -866,7 +955,7 @@ const { useState, useEffect, useRef } = React;
             }
 
             if (!data || data.length === 0) {
-                ctx.parentElement.innerHTML = '<div class="flex items-center justify-center h-full text-gray-400 text-sm">暂无数据</div>';
+                ctx.parentElement.innerHTML = '<div class="flex items-center justify-center h-full text-slate-400 text-sm">暂无数据</div>';
                 return;
             }
 
@@ -879,6 +968,11 @@ const { useState, useEffect, useRef } = React;
                 const success = item.successCount || 0;
                 return total > 0 ? ((success / total) * 100).toFixed(1) : 0;
             });
+            
+            const isDark = document.documentElement.classList.contains('dark');
+            const colors = window.getChartColors ? window.getChartColors(isDark) : {};
+            const infoColor = colors.info || '#3b82f6';
+            const successColor = colors.success || '#22c55e';
 
             chartInstances.apiKeyStatsChart = new Chart(ctx, {
                 type: 'bar',
@@ -888,16 +982,16 @@ const { useState, useEffect, useRef } = React;
                         {
                             label: '请求数',
                             data: requestCounts,
-                            backgroundColor: 'rgba(59, 130, 246, 0.8)',
-                            borderColor: 'rgb(59, 130, 246)',
+                            backgroundColor: infoColor + 'CC',
+                            borderColor: infoColor,
                             borderWidth: 1,
                             yAxisID: 'y'
                         },
                         {
                             label: '成功率 (%)',
                             data: successRates,
-                            backgroundColor: 'rgba(34, 197, 94, 0.8)',
-                            borderColor: 'rgb(34, 197, 94)',
+                            backgroundColor: successColor + 'CC',
+                            borderColor: successColor,
                             borderWidth: 1,
                             yAxisID: 'y1'
                         }
@@ -913,9 +1007,15 @@ const { useState, useEffect, useRef } = React;
                     plugins: {
                         legend: {
                             display: true,
-                            position: 'top'
+                            position: 'top',
+                            labels: { color: colors.text }
                         },
                         tooltip: {
+                            backgroundColor: colors.background,
+                            titleColor: colors.text,
+                            bodyColor: colors.text,
+                            borderColor: colors.border,
+                            borderWidth: 1,
                             callbacks: {
                                 afterLabel: function(context) {
                                     const index = context.dataIndex;
@@ -936,7 +1036,8 @@ const { useState, useEffect, useRef } = React;
                                 minRotation: 0,
                                 font: {
                                     size: 11
-                                }
+                                },
+                                color: colors.text
                             }
                         },
                         y: {
@@ -945,9 +1046,12 @@ const { useState, useEffect, useRef } = React;
                             position: 'left',
                             title: {
                                 display: true,
-                                text: '请求数'
+                                text: '请求数',
+                                color: colors.text
                             },
-                            beginAtZero: true
+                            beginAtZero: true,
+                            grid: { color: colors.grid },
+                            ticks: { color: colors.text }
                         },
                         y1: {
                             type: 'linear',
@@ -955,13 +1059,15 @@ const { useState, useEffect, useRef } = React;
                             position: 'right',
                             title: {
                                 display: true,
-                                text: '成功率 (%)'
+                                text: '成功率 (%)',
+                                color: colors.text
                             },
                             beginAtZero: true,
                             max: 100,
                             grid: {
                                 drawOnChartArea: false
-                            }
+                            },
+                            ticks: { color: colors.text }
                         }
                     }
                 }
@@ -988,41 +1094,43 @@ const { useState, useEffect, useRef } = React;
                 const container = document.getElementById('models-table');
 
                 if (models.length === 0) {
-                    container.innerHTML = '<div class="text-center py-12 text-gray-500">暂无模型</div>';
+                    container.innerHTML = '<div class="text-center py-12 text-slate-500 dark:text-slate-400">暂无模型</div>';
                     return;
                 }
 
                 container.innerHTML = `
-                    <table class="w-full">
-                        <thead class="bg-gray-50 border-b border-gray-200">
-                            <tr>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">模型 ID</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">显示名称</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Max Tokens</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">状态</th>
-                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">操作</th>
-                            </tr>
-                        </thead>
-                        <tbody class="bg-white divide-y divide-gray-200">
-                            ${models.map(m => `
+                    <div class="overflow-x-auto">
+                        <table class="w-full divide-y divide-slate-200 dark:divide-slate-800">
+                            <thead class="bg-slate-50 dark:bg-slate-800/50">
                                 <tr>
-                                    <td class="px-6 py-4 text-sm text-gray-900 font-mono">${m.id}</td>
-                                    <td class="px-6 py-4 text-sm text-gray-900">${m.displayName}</td>
-                                    <td class="px-6 py-4 text-sm text-gray-600">${m.maxTokens}</td>
-                                    <td class="px-6 py-4">
-                                        <span class="px-2 py-1 text-xs rounded ${m.enabled ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}">
-                                            ${m.enabled ? '启用' : '禁用'}
-                                        </span>
-                                    </td>
-                                    <td class="px-6 py-4 text-right text-sm space-x-2">
-                                        <button onclick="editModel('${m.id}')" class="text-blue-600 hover:text-blue-800">编辑</button>
-                                        <button onclick="toggleModel('${m.id}')" class="text-yellow-600 hover:text-yellow-800">${m.enabled ? '禁用' : '启用'}</button>
-                                        <button onclick="deleteModel('${m.id}')" class="text-red-600 hover:text-red-800">删除</button>
-                                    </td>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">模型 ID</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">显示名称</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Max Tokens</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">状态</th>
+                                    <th class="px-6 py-3 text-right text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">操作</th>
                                 </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody class="bg-white dark:bg-slate-900 divide-y divide-slate-200 dark:divide-slate-800">
+                                ${models.map(m => `
+                                    <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-900 dark:text-white font-mono">${m.id}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-900 dark:text-white">${m.displayName}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600 dark:text-slate-300 font-mono">${m.maxTokens}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <span class="px-2 py-1 text-xs rounded-full font-medium ${m.enabled ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400' : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400'}">
+                                                ${m.enabled ? '启用' : '禁用'}
+                                            </span>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-3">
+                                            <button onclick="editModel('${m.id}')" class="text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300">编辑</button>
+                                            <button onclick="toggleModel('${m.id}')" class="text-amber-600 hover:text-amber-800 dark:text-amber-400 dark:hover:text-amber-300">${m.enabled ? '禁用' : '启用'}</button>
+                                            <button onclick="deleteModel('${m.id}')" class="text-rose-600 hover:text-rose-800 dark:text-rose-400 dark:hover:text-rose-300">删除</button>
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
                 `;
             } catch (e) {
                 showToast('加载模型失败: ' + e.message, 'error');
@@ -1132,47 +1240,49 @@ const { useState, useEffect, useRef } = React;
                 const container = document.getElementById('mappings-table');
 
                 if (mappings.length === 0) {
-                    container.innerHTML = '<div class="text-center py-12 text-gray-500">暂无映射规则</div>';
+                    container.innerHTML = '<div class="text-center py-12 text-slate-500 dark:text-slate-400">暂无映射规则</div>';
                     return;
                 }
 
                 container.innerHTML = `
-                    <table class="w-full">
-                        <thead class="bg-gray-50 border-b border-gray-200">
-                            <tr>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">匹配模式</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">匹配类型</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">内部模型 ID</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">优先级</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">状态</th>
-                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">操作</th>
-                            </tr>
-                        </thead>
-                        <tbody class="bg-white divide-y divide-gray-200">
-                            ${mappings.map(m => `
+                    <div class="overflow-x-auto">
+                        <table class="w-full divide-y divide-slate-200 dark:divide-slate-800">
+                            <thead class="bg-slate-50 dark:bg-slate-800/50">
                                 <tr>
-                                    <td class="px-6 py-4 text-sm text-gray-900 font-mono">${m.externalPattern}</td>
-                                    <td class="px-6 py-4 text-sm text-gray-600">
-                                        <span class="px-2 py-1 text-xs rounded ${m.matchType === 'regex' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}">
-                                            ${m.matchType === 'regex' ? '正则' : '包含'}
-                                        </span>
-                                    </td>
-                                    <td class="px-6 py-4 text-sm text-gray-600 font-mono">${m.internalId}</td>
-                                    <td class="px-6 py-4 text-sm text-gray-600">${m.priority}</td>
-                                    <td class="px-6 py-4">
-                                        <span class="px-2 py-1 text-xs rounded ${m.enabled ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}">
-                                            ${m.enabled ? '启用' : '禁用'}
-                                        </span>
-                                    </td>
-                                    <td class="px-6 py-4 text-right text-sm space-x-2">
-                                        <button onclick="editMapping(${m.id})" class="text-blue-600 hover:text-blue-800">编辑</button>
-                                        <button onclick="toggleMapping(${m.id})" class="text-yellow-600 hover:text-yellow-800">${m.enabled ? '禁用' : '启用'}</button>
-                                        <button onclick="deleteMapping(${m.id})" class="text-red-600 hover:text-red-800">删除</button>
-                                    </td>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">匹配模式</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">匹配类型</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">内部模型 ID</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">优先级</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">状态</th>
+                                    <th class="px-6 py-3 text-right text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">操作</th>
                                 </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody class="bg-white dark:bg-slate-900 divide-y divide-slate-200 dark:divide-slate-800">
+                                ${mappings.map(m => `
+                                    <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-900 dark:text-white font-mono">${m.externalPattern}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                            <span class="px-2 py-1 text-xs rounded-full font-medium ${m.matchType === 'regex' ? 'bg-purple-100 text-purple-700 dark:bg-purple-500/20 dark:text-purple-400' : 'bg-blue-100 text-blue-700 dark:bg-indigo-600/20 dark:text-blue-400'}">
+                                                ${m.matchType === 'regex' ? '正则' : '包含'}
+                                            </span>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600 dark:text-slate-300 font-mono">${m.internalId}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600 dark:text-slate-300">${m.priority}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <span class="px-2 py-1 text-xs rounded-full font-medium ${m.enabled ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400' : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400'}">
+                                                ${m.enabled ? '启用' : '禁用'}
+                                            </span>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-3">
+                                            <button onclick="editMapping(${m.id})" class="text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300">编辑</button>
+                                            <button onclick="toggleMapping(${m.id})" class="text-amber-600 hover:text-amber-800 dark:text-amber-400 dark:hover:text-amber-300">${m.enabled ? '禁用' : '启用'}</button>
+                                            <button onclick="deleteMapping(${m.id})" class="text-rose-600 hover:text-rose-800 dark:text-rose-400 dark:hover:text-rose-300">删除</button>
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
                 `;
             } catch (e) {
                 showToast('加载映射失败: ' + e.message, 'error');

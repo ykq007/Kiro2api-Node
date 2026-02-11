@@ -12,6 +12,7 @@ import { createApiRouter } from './routes/api.js';
 import { createUiRouter } from './routes/ui.js';
 import { createAdminRouter } from './routes/admin.js';
 import { createStatsRouter } from './routes/stats.js';
+import { RateLimiter } from './rate-limiter.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -85,13 +86,18 @@ async function startServer() {
     // 启动时间
     const startTime = Date.now();
 
+    // 初始化速率限制器
+    const rateLimiter = new RateLimiter(dbManager);
+    console.log('✓ 速率限制器初始化完成');
+
     // 共享状态
     const state = {
       config,
       settingsManager,
       accountPool,
       dbManager,
-      startTime
+      startTime,
+      rateLimiter
     };
 
     // 静态文件

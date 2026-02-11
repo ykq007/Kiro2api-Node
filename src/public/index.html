@@ -4,7 +4,29 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kiro2api-Node 管理面板</title>
+    <script>
+        // Init theme immediately to prevent FOUC
+        if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+    </script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        slate: {
+                            850: '#1e293b', // Custom slate for differentiation
+                        }
+                    }
+                }
+            }
+        }
+    </script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -16,6 +38,13 @@
     <!-- 服务层 -->
     <script src="./services/accountsService.js"></script>
     <script src="./services/logsService.js"></script>
+    <!-- UI 组件库 -->
+    <script type="text/babel" src="./components/ui/Badge.js"></script>
+    <script type="text/babel" src="./components/ui/Button.js"></script>
+    <script type="text/babel" src="./components/ui/Card.js"></script>
+    <script type="text/babel" src="./components/ui/Modal.js"></script>
+    <script type="text/babel" src="./components/ui/ProgressBar.js"></script>
+    
     <!-- React 组件 -->
     <script type="text/babel" src="./components/LoginPage.js"></script>
     <script type="text/babel" src="./components/StatsGrid.js"></script>
@@ -49,7 +78,7 @@
     <!-- 样式 -->
     <link rel="stylesheet" href="./styles/app.css">
 </head>
-<body class="bg-gray-50 min-h-screen">
+<body class="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 min-h-screen transition-colors duration-200">
     <div id="app"></div>
     <script type="text/babel" src="./app.js"></script>
 </body>

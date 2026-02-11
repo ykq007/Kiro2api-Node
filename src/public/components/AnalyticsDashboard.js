@@ -17,8 +17,8 @@ function AnalyticsDashboard() {
                         onClick={() => setTimeRange(range.value)}
                         className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
                             timeRange === range.value
-                                ? 'bg-blue-500 text-white'
-                                : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                                ? 'bg-indigo-600 text-white shadow-sm'
+                                : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700'
                         }`}
                     >
                         {range.label}
@@ -29,43 +29,40 @@ function AnalyticsDashboard() {
             {/* 图表网格 */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* 按模型统计 */}
-                <div className="bg-white rounded-lg shadow p-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">按模型统计</h3>
+                <Card title="按模型统计">
                     <div className="h-80">
                         <ModelChart timeRange={timeRange} />
                     </div>
-                </div>
+                </Card>
 
                 {/* 成功率 */}
-                <div className="bg-white rounded-lg shadow p-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">请求成功率</h3>
+                <Card title="请求成功率">
                     <div className="h-80">
                         <SuccessRateChart timeRange={timeRange} />
                     </div>
-                </div>
+                </Card>
 
                 {/* Token消耗趋势 */}
-                <div className="bg-white rounded-lg shadow p-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Token 消耗趋势</h3>
+                <Card title="Token 消耗趋势">
                     <div className="h-80">
                         <TokenTrendsChart timeRange={timeRange} />
                     </div>
-                </div>
+                </Card>
 
                 {/* Top账号 */}
-                <div className="bg-white rounded-lg shadow p-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Top 10 账号</h3>
+                <Card title="Top 10 账号">
                     <div className="h-80">
                         <TopAccountsChart timeRange={timeRange} />
                     </div>
-                </div>
+                </Card>
 
                 {/* API Key统计 */}
-                <div className="bg-white rounded-lg shadow p-6 lg:col-span-2">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">API Key 统计</h3>
-                    <div className="h-80">
-                        <ApiKeyStatsChart timeRange={timeRange} />
-                    </div>
+                <div className="lg:col-span-2">
+                    <Card title="API Key 统计">
+                        <div className="h-80">
+                            <ApiKeyStatsChart timeRange={timeRange} />
+                        </div>
+                    </Card>
                 </div>
             </div>
         </div>

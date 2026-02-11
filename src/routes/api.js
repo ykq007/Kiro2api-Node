@@ -6,6 +6,18 @@ import { v4 as uuidv4 } from 'uuid';
 import fs from 'fs/promises';
 import path from 'path';
 
+const MAX_RETRIES = 3;
+
+function isRetryableError(error) {
+  const status = error.status || 0;
+  const msg = String(error?.message || '');
+  if (status === 429) return true;
+  if (status >= 500) return true;
+  if (msg.includes('Token') && msg.includes('刷新失败')) return true;
+  if (msg.includes('FetchError') || msg.includes('ECONN') || msg.includes('ETIMEDOUT')) return true;
+  return false;
+}
+
 // 获取模型上下文长度
 function getModelContextLength(model, config) {
   const configured = Number(config?.modelContextLength);
@@ -70,81 +82,119 @@ export function createApiRouter(state) {
   // POST /v1/messages (Anthropic 格式)
   router.post('/messages', async (req, res) => {
     const startTime = Date.now();
-    let selected = null;
-    let upstreamModel = null;
 
-    try {
-      // 选择账号
-      selected = await state.accountPool.selectAccount();
-      if (!selected) {
-        return res.status(503).json({
-          type: 'error',
-          error: { type: 'overloaded_error', message: '没有可用的账号' }
-        });
-      }
-
-      const isStream = req.body.stream === true;
-      const kiroClient = new KiroClient(state.config, selected.tokenManager, state.dbManager);
-      upstreamModel = kiroClient.mapModel(req.body.model);
-
-      // 调用 Kiro API
-      const { response, toolNameMap } = await kiroClient.callApiStream(req.body);
-
-      if (isStream) {
-        // 流式响应
-        await handleStreamResponse(res, response, toolNameMap, selected, state, startTime, req.body.model, req, upstreamModel);
-      } else {
-        // 非流式响应
-        await handleNonStreamResponse(res, response, toolNameMap, selected, state, startTime, req.body.model, req, upstreamModel);
-      }
-
-    } catch (error) {
-      // 记录错误
-      if (selected) {
-        state.accountPool.addLog({
-          accountId: selected.id,
-          accountName: selected.name,
-          model: req.body.model,
-          inputTokens: 0,
-          outputTokens: 0,
-          durationMs: Date.now() - startTime,
-          success: false,
-          error: error.message,
-          apiKey: req.apiKey,
-          stream: req.body.stream === true,
-          upstreamModel: upstreamModel
-        });
-        
-        // 增加账号错误计数
-        const isRateLimit = error.status === 429 || error.message?.includes('rate') || error.message?.includes('limit');
-        state.accountPool.recordError(selected.id, isRateLimit);
-      }
-
-      if (error instanceof KiroApiError) {
-        try {
-          const debugDir = path.join(state.config.dataDir || './data', 'debug');
-          await fs.mkdir(debugDir, { recursive: true });
-          const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-          const debugPath = path.join(debugDir, `kiro_error_${stamp}.json`);
-          await fs.writeFile(debugPath, JSON.stringify({
-            at: new Date().toISOString(),
-            status: error.status,
-            responseText: error.responseText,
-            requestDebug: error.requestDebug
-          }, null, 2));
-        } catch {
-          // ignore debug write failures
+    // ── Rate limit check (before selecting account) ──
+    if (state.rateLimiter) {
+      const limits = state.dbManager.getApiKeyLimits(req.apiKey);
+      if (limits) {
+        const result = state.rateLimiter.check(req.apiKey, limits.rateLimitRpm || 0, limits.dailyTokenQuota || 0);
+        if (!result.allowed) {
+          if (result.retryAfterMs) res.setHeader('Retry-After', String(Math.ceil(result.retryAfterMs / 1000)));
+          return res.status(429).json({
+            type: 'error',
+            error: {
+              type: 'rate_limit_error',
+              message: result.reason === 'daily_quota' ? '已达到每日 Token 配额上限' : '请求频率超出限制'
+            }
+          });
         }
       }
-
-      const status = inferHttpStatus(error);
-      const errorType = inferAnthropicErrorType(status);
-
-      res.status(status).json({
-        type: 'error',
-        error: { type: errorType, message: error.message }
-      });
+      state.rateLimiter.recordRequest(req.apiKey);
     }
+
+    // ── Retry loop with failover ──
+    const triedAccountIds = new Set();
+    let lastError = null;
+
+    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+      let selected = null;
+      let upstreamModel = null;
+
+      try {
+        selected = await state.accountPool.selectAccount(triedAccountIds);
+        if (!selected) {
+          return res.status(503).json({
+            type: 'error',
+            error: { type: 'overloaded_error', message: '没有可用的账号' }
+          });
+        }
+
+        const isStream = req.body.stream === true;
+        const kiroClient = new KiroClient(state.config, selected.tokenManager, state.dbManager);
+        upstreamModel = kiroClient.mapModel(req.body.model);
+
+        const { response, toolNameMap } = await kiroClient.callApiStream(req.body);
+
+        if (isStream) {
+          await handleStreamResponse(res, response, toolNameMap, selected, state, startTime, req.body.model, req, upstreamModel);
+        } else {
+          await handleNonStreamResponse(res, response, toolNameMap, selected, state, startTime, req.body.model, req, upstreamModel);
+        }
+
+        // Success — exit retry loop
+        return;
+
+      } catch (error) {
+        lastError = error;
+
+        // Log the error for this attempt
+        if (selected) {
+          state.accountPool.addLog({
+            accountId: selected.id,
+            accountName: selected.name,
+            model: req.body.model,
+            inputTokens: 0,
+            outputTokens: 0,
+            durationMs: Date.now() - startTime,
+            success: false,
+            error: error.message,
+            apiKey: req.apiKey,
+            stream: req.body.stream === true,
+            upstreamModel: upstreamModel
+          });
+
+          const isRateLimit = error.status === 429 || error.message?.includes('rate') || error.message?.includes('limit');
+          state.accountPool.recordError(selected.id, isRateLimit);
+          triedAccountIds.add(selected.id);
+        }
+
+        // Decide whether to retry
+        if (!isRetryableError(error) || attempt === MAX_RETRIES - 1) {
+          break; // non-retryable or last attempt
+        }
+
+        console.log(`[Retry] 第 ${attempt + 1} 次尝试失败 (账号: ${selected?.name || '?'}), 错误: ${error.message}, 将重试...`);
+        continue;
+      }
+    }
+
+    // All retries exhausted — return the last error
+    const error = lastError;
+
+    if (error instanceof KiroApiError) {
+      try {
+        const debugDir = path.join(state.config.dataDir || './data', 'debug');
+        await fs.mkdir(debugDir, { recursive: true });
+        const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const debugPath = path.join(debugDir, `kiro_error_${stamp}.json`);
+        await fs.writeFile(debugPath, JSON.stringify({
+          at: new Date().toISOString(),
+          status: error.status,
+          responseText: error.responseText,
+          requestDebug: error.requestDebug
+        }, null, 2));
+      } catch {
+        // ignore debug write failures
+      }
+    }
+
+    const status = inferHttpStatus(error);
+    const errorType = inferAnthropicErrorType(status);
+
+    res.status(status).json({
+      type: 'error',
+      error: { type: errorType, message: error.message }
+    });
   });
 
   return router;

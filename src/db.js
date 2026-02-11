@@ -237,6 +237,16 @@ export class DatabaseManager {
         // 忽略迁移错误
       }
     }
+
+    // 为 api_keys 表添加 rate_limit_rpm 字段（每分钟请求数限制，0=无限制）
+    if (!this._columnExists('api_keys', 'rate_limit_rpm')) {
+      this.db.exec(`ALTER TABLE api_keys ADD COLUMN rate_limit_rpm INTEGER DEFAULT 0`);
+    }
+
+    // 为 api_keys 表添加 daily_token_quota 字段（每日 Token 配额，0=无限制）
+    if (!this._columnExists('api_keys', 'daily_token_quota')) {
+      this.db.exec(`ALTER TABLE api_keys ADD COLUMN daily_token_quota INTEGER DEFAULT 0`);
+    }
   }
 
   // 插入请求日志
@@ -688,8 +698,38 @@ export class DatabaseManager {
 
   // 列出所有 API 密钥（含详细信息）
   listApiKeysWithDetails() {
-    const stmt = this.db.prepare('SELECT key, name, created_at as createdAt FROM api_keys ORDER BY created_at DESC');
+    const stmt = this.db.prepare(
+      `SELECT key, name, rate_limit_rpm as rateLimitRpm, daily_token_quota as dailyTokenQuota, created_at as createdAt
+       FROM api_keys ORDER BY created_at DESC`
+    );
     return stmt.all();
+  }
+
+  // 获取 API 密钥的速率限制配置
+  getApiKeyLimits(key) {
+    return this.db.prepare(
+      'SELECT rate_limit_rpm as rateLimitRpm, daily_token_quota as dailyTokenQuota FROM api_keys WHERE key = ?'
+    ).get(key);
+  }
+
+  // 更新 API 密钥的速率限制配置
+  updateApiKeyLimits(key, { rateLimitRpm, dailyTokenQuota }) {
+    const fields = [], values = [];
+    if (rateLimitRpm !== undefined) { fields.push('rate_limit_rpm = ?'); values.push(rateLimitRpm); }
+    if (dailyTokenQuota !== undefined) { fields.push('daily_token_quota = ?'); values.push(dailyTokenQuota); }
+    if (fields.length === 0) return false;
+    values.push(key);
+    return this.db.prepare(`UPDATE api_keys SET ${fields.join(', ')} WHERE key = ?`).run(...values).changes > 0;
+  }
+
+  // 获取 API 密钥当日 Token 使用量
+  getApiKeyDailyTokenUsage(key) {
+    const row = this.db.prepare(
+      `SELECT COALESCE(SUM(input_tokens + output_tokens), 0) as totalTokens
+       FROM request_logs
+       WHERE api_key = ? AND date(timestamp) = date('now')`
+    ).get(key);
+    return row ? row.totalTokens : 0;
   }
 
   // 按 API 密钥统计

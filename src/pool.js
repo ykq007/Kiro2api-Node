@@ -151,9 +151,27 @@ export class AccountPool {
     return results;
   }
 
-  async selectAccount() {
-    const available = Array.from(this.accounts.values())
-      .filter(a => a.status === 'active');
+  isQuotaExhausted(account) {
+    if (!account.usage) return false;            // No data = assume OK
+    if (!account.usage.usageLimit) return false;  // No limit = unlimited
+    // If usage data is stale (> 1 hour), don't skip (might have reset)
+    const updatedAt = account.usage.updatedAt ? new Date(account.usage.updatedAt) : null;
+    if (updatedAt && (Date.now() - updatedAt.getTime() > 3600000)) return false;
+    return account.usage.available <= 0;
+  }
+
+  async selectAccount(excludeIds = new Set()) {
+    let available = Array.from(this.accounts.values())
+      .filter(a => a.status === 'active')
+      .filter(a => !excludeIds.has(a.id))
+      .filter(a => !this.isQuotaExhausted(a));
+
+    // Fallback: if all non-excluded active accounts are quota-exhausted, use them anyway
+    if (available.length === 0) {
+      available = Array.from(this.accounts.values())
+        .filter(a => a.status === 'active')
+        .filter(a => !excludeIds.has(a.id));
+    }
 
     if (available.length === 0) return null;
 

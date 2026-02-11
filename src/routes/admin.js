@@ -271,12 +271,37 @@ export function createAdminRouter(state) {
     res.json({ success: removed, error: removed ? null : '无法删除，至少保留一个 API 密钥' });
   });
 
-  // PATCH /api/settings/api-keys/:key - 更新密钥名称
+  // PATCH /api/settings/api-keys/:key - 更新密钥名称和限制
   router.patch('/settings/api-keys/:key', async (req, res) => {
     const { key } = req.params;
-    const { name } = req.body;
-    const updated = await state.settingsManager.updateApiKeyName(key, name);
-    res.json({ success: updated, error: updated ? null : '密钥不存在' });
+    const { name, rateLimitRpm, dailyTokenQuota } = req.body;
+
+    let nameUpdated = true;
+    if (name !== undefined) {
+      nameUpdated = await state.settingsManager.updateApiKeyName(key, name);
+    }
+
+    let limitsUpdated = true;
+    if (rateLimitRpm !== undefined || dailyTokenQuota !== undefined) {
+      limitsUpdated = state.dbManager.updateApiKeyLimits(key, {
+        rateLimitRpm: rateLimitRpm !== undefined ? rateLimitRpm : undefined,
+        dailyTokenQuota: dailyTokenQuota !== undefined ? dailyTokenQuota : undefined
+      });
+    }
+
+    const success = nameUpdated && limitsUpdated;
+    res.json({ success, error: success ? null : '密钥不存在' });
+  });
+
+  // GET /api/settings/api-keys/:key/usage - 获取密钥当日 Token 使用量
+  router.get('/settings/api-keys/:key/usage', (req, res) => {
+    const { key } = req.params;
+    const totalTokens = state.dbManager.getApiKeyDailyTokenUsage(key);
+    const limits = state.dbManager.getApiKeyLimits(key);
+    res.json({
+      totalTokens,
+      dailyTokenQuota: limits?.dailyTokenQuota || 0
+    });
   });
 
   // ============ 模型管理 API ============
