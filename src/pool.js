@@ -6,6 +6,15 @@ import { checkUsageLimits } from './usage.js';
 
 const ACCOUNTS_FILE = 'accounts.json';
 
+// 导入 broadcastUpdate 用于 SSE 实时通知
+let broadcastUpdate = null;
+try {
+  const adminModule = await import('./routes/admin.js');
+  broadcastUpdate = adminModule.broadcastUpdate;
+} catch (e) {
+  // 如果导入失败，broadcastUpdate 保持为 null
+}
+
 export class AccountPool {
   constructor(config, db = null) {
     this.config = config;
@@ -41,7 +50,9 @@ export class AccountPool {
             errorCount: acc.errorCount,
             createdAt: acc.createdAt,
             lastUsedAt: acc.lastUsedAt,
-            usage
+            usage,
+            disabledReason: acc.disabledReason || null,
+            disabledAt: acc.disabledAt || null
           };
 
           this.accounts.set(acc.id, account);
@@ -105,7 +116,9 @@ export class AccountPool {
       errorCount: a.errorCount,
       createdAt: a.createdAt,
       lastUsedAt: a.lastUsedAt,
-      usage: a.usage || null
+      usage: a.usage || null,
+      disabledReason: a.disabledReason || null,
+      disabledAt: a.disabledAt || null
     }));
   }
 
@@ -136,6 +149,18 @@ export class AccountPool {
       return account.usage;
     } catch (e) {
       console.error(`刷新账号 ${id} 额度失败:`, e.message);
+
+      // 检查是否为永久错误（使用 status 字段或关键词判断）
+      const isPermanent = e.status === 401 || e.status === 403 ||
+        e.message.toLowerCase().includes('suspended') ||
+        e.message.toLowerCase().includes('token') && e.message.toLowerCase().includes('刷新失败');
+
+      if (isPermanent) {
+        console.log(`[Auto-Disable] 账号 ${id} 因刷新失败自动禁用: ${e.message}`);
+        await this.disableAccount(id, `额度刷新失败: ${e.message}`);
+        return { error: e.message, disabled: true };
+      }
+
       return { error: e.message };
     }
   }
@@ -221,8 +246,32 @@ export class AccountPool {
           if (this.db) {
             this.db.updateAccount(id, { status: 'active' });
           }
+
+          // SSE 通知账号恢复
+          if (typeof broadcastUpdate === 'function') {
+            broadcastUpdate({
+              type: 'account_status_changed',
+              accountId: id,
+              accountName: account.name,
+              status: 'active',
+              reason: 'cooldown 结束',
+              timestamp: new Date().toISOString()
+            });
+          }
         }
       }, 5 * 60 * 1000); // 5分钟冷却
+
+      // SSE 通知账号进入冷却
+      if (typeof broadcastUpdate === 'function') {
+        broadcastUpdate({
+          type: 'account_status_changed',
+          accountId: id,
+          accountName: account.name,
+          status: 'cooldown',
+          reason: 'Rate limit',
+          timestamp: new Date().toISOString()
+        });
+      }
     }
 
     // 写入数据库
@@ -234,12 +283,30 @@ export class AccountPool {
     }
   }
 
-  async markInvalid(id) {
+  async markInvalid(id, reason = null) {
     const account = this.accounts.get(id);
     if (account) {
       account.status = 'invalid';
+      account.disabledReason = reason;
+      account.disabledAt = new Date().toISOString();
       if (this.db) {
-        this.db.updateAccount(id, { status: 'invalid' });
+        this.db.updateAccount(id, {
+          status: 'invalid',
+          disabledReason: reason,
+          disabledAt: account.disabledAt
+        });
+      }
+
+      // SSE 实时通知
+      if (typeof broadcastUpdate === 'function') {
+        broadcastUpdate({
+          type: 'account_status_changed',
+          accountId: id,
+          accountName: account.name,
+          status: 'invalid',
+          reason: reason,
+          timestamp: account.disabledAt
+        });
       }
     }
   }
@@ -248,20 +315,32 @@ export class AccountPool {
     const account = this.accounts.get(id);
     if (account) {
       account.status = 'active';
+      account.disabledReason = null;
+      account.disabledAt = null;
       if (this.db) {
-        this.db.updateAccount(id, { status: 'active' });
+        this.db.updateAccount(id, {
+          status: 'active',
+          disabledReason: null,
+          disabledAt: null
+        });
       }
       return true;
     }
     return false;
   }
 
-  async disableAccount(id) {
+  async disableAccount(id, reason = null) {
     const account = this.accounts.get(id);
     if (account) {
       account.status = 'disabled';
+      account.disabledReason = reason;
+      account.disabledAt = new Date().toISOString();
       if (this.db) {
-        this.db.updateAccount(id, { status: 'disabled' });
+        this.db.updateAccount(id, {
+          status: 'disabled',
+          disabledReason: reason,
+          disabledAt: account.disabledAt
+        });
       }
       return true;
     }

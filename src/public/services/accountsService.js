@@ -75,5 +75,12 @@ window.accountsService = {
             method: 'POST',
             body: JSON.stringify({ strategy })
         });
+    },
+
+    // 重新验证账号
+    async revalidateAccount(id) {
+        return await fetchApi(`/api/accounts/${id}/revalidate`, {
+            method: 'POST'
+        });
     }
 };

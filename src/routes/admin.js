@@ -170,6 +170,25 @@ export function createAdminRouter(state) {
     res.json({ success });
   });
 
+  // POST /api/accounts/:id/revalidate - 重新验证账号
+  router.post('/accounts/:id/revalidate', async (req, res) => {
+    try {
+      const account = state.accountPool.accounts.get(req.params.id);
+      if (!account) {
+        return res.status(404).json({ error: '账号不存在' });
+      }
+
+      const tm = state.accountPool.tokenManagers.get(req.params.id);
+      await tm.refreshToken(); // 尝试刷新 token
+
+      // 成功则启用账号
+      await state.accountPool.enableAccount(req.params.id);
+      res.json({ success: true, message: '账号已重新验证并启用' });
+    } catch (error) {
+      res.status(400).json({ success: false, error: error.message });
+    }
+  });
+
   // POST /api/accounts/:id/refresh-usage - 刷新单个账号额度
   router.post('/accounts/:id/refresh-usage', async (req, res) => {
     try {

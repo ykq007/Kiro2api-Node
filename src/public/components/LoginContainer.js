@@ -15,7 +15,10 @@ window.LoginContainer = function LoginContainer() {
                         setIsLoggedIn(true);
                         setIsLoading(false);
                         // 触发主面板显示
-                        setTimeout(() => window.showMainPanel && window.showMainPanel(), 0);
+                        setTimeout(() => {
+                            window.showMainPanel && window.showMainPanel();
+                            window.initSSE && window.initSSE();
+                        }, 0);
                         return;
                     } else {
                         localStorage.removeItem('kiro_admin_key');
@@ -32,6 +35,7 @@ window.LoginContainer = function LoginContainer() {
     const handleLoginSuccess = () => {
         setIsLoggedIn(true);
         window.showMainPanel && window.showMainPanel();
+        window.initSSE && window.initSSE();
         window.showToast && window.showToast('登录成功', 'success');
     };
 

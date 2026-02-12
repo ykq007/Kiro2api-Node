@@ -8,6 +8,28 @@ import path from 'path';
 
 const MAX_RETRIES = 3;
 
+// 错误分类：PERMANENT（永久错误，需禁用账号）、RATE_LIMIT（限流，需冷却）、RETRYABLE（可重试）
+function classifyError(error) {
+  const status = error.status || 0;
+  const msg = String(error?.message || '');
+
+  // 永久错误：Token 失效、账号被封禁
+  if (status === 401 || status === 403) return 'PERMANENT';
+  if (msg.includes('Token') && msg.includes('刷新失败') && !msg.includes('FetchError')) return 'PERMANENT';
+  if (msg.includes('suspended') || msg.includes('Suspended')) return 'PERMANENT';
+
+  // 限流错误：需要冷却
+  if (status === 429) return 'RATE_LIMIT';
+  if (msg.includes('rate') && msg.includes('limit')) return 'RATE_LIMIT';
+
+  // 可重试错误：网络问题、上游服务错误
+  if (status >= 500) return 'RETRYABLE';
+  if (msg.includes('FetchError') || msg.includes('ECONN') || msg.includes('ETIMEDOUT')) return 'RETRYABLE';
+
+  // 默认为可重试
+  return 'RETRYABLE';
+}
+
 function isRetryableError(error) {
   const status = error.status || 0;
   const msg = String(error?.message || '');
@@ -105,18 +127,16 @@ export function createApiRouter(state) {
     // ── Retry loop with failover ──
     const triedAccountIds = new Set();
     let lastError = null;
+    const totalAccounts = state.accountPool.accounts.size;
 
-    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    while (triedAccountIds.size < totalAccounts) {
       let selected = null;
       let upstreamModel = null;
 
       try {
         selected = await state.accountPool.selectAccount(triedAccountIds);
         if (!selected) {
-          return res.status(503).json({
-            type: 'error',
-            error: { type: 'overloaded_error', message: '没有可用的账号' }
-          });
+          break; // 没有更多可用账号
         }
 
         const isStream = req.body.stream === true;
@@ -147,24 +167,30 @@ export function createApiRouter(state) {
             outputTokens: 0,
             durationMs: Date.now() - startTime,
             success: false,
-            error: error.message,
+            errorMessage: error.message,
             apiKey: req.apiKey,
             stream: req.body.stream === true,
             upstreamModel: upstreamModel
           });
 
-          const isRateLimit = error.status === 429 || error.message?.includes('rate') || error.message?.includes('limit');
-          state.accountPool.recordError(selected.id, isRateLimit);
+          // 分类错误并采取相应措施
+          const errorType = classifyError(error);
+
+          if (errorType === 'PERMANENT') {
+            // 永久错误：立即禁用账号
+            await state.accountPool.disableAccount(selected.id, error.message);
+            console.log(`[Auto-Disable] 账号 ${selected.name} 已自动禁用: ${error.message}`);
+          } else if (errorType === 'RATE_LIMIT') {
+            // 限流错误：设置冷却
+            await state.accountPool.recordError(selected.id, true);
+            console.log(`[Cooldown] 账号 ${selected.name} 进入冷却状态`);
+          }
+
           triedAccountIds.add(selected.id);
-        }
 
-        // Decide whether to retry
-        if (!isRetryableError(error) || attempt === MAX_RETRIES - 1) {
-          break; // non-retryable or last attempt
+          // 继续尝试下一个账号
+          console.log(`[Retry] 账号 ${selected.name} 失败 (${errorType})，尝试下一个账号... (已尝试 ${triedAccountIds.size}/${totalAccounts})`);
         }
-
-        console.log(`[Retry] 第 ${attempt + 1} 次尝试失败 (账号: ${selected?.name || '?'}), 错误: ${error.message}, 将重试...`);
-        continue;
       }
     }
 

@@ -236,6 +236,7 @@ const { useState, useEffect, useRef } = React;
                     onRefreshUsage={refreshUsage}
                     onEnable={enableAccount}
                     onDisable={disableAccount}
+                    onRevalidate={revalidateAccount}
                     onRemove={removeAccount}
                 />);
             }
@@ -318,13 +319,35 @@ const { useState, useEffect, useRef } = React;
         let totalRecords = 0;
 
         async function refreshUsage(id) {
-            try { await fetchApi(`/api/accounts/${id}/refresh-usage`, { method: 'POST' }); loadAccounts(); showToast('刷新成功', 'success'); }
-            catch (e) { showToast('刷新失败: ' + e.message, 'error'); }
+            try {
+                const result = await fetchApi(`/api/accounts/${id}/refresh-usage`, { method: 'POST' });
+                loadAccounts();
+                if (result.disabled) {
+                    showToast('账号已自动禁用: ' + result.error, 'warning');
+                } else {
+                    showToast('刷新成功', 'success');
+                }
+            } catch (e) {
+                showToast('刷新失败: ' + e.message, 'error');
+            }
         }
 
         async function refreshAllUsage() {
-            try { showToast('正在刷新...', 'info'); await fetchApi('/api/accounts/refresh-all-usage', { method: 'POST' }); loadAccounts(); showToast('刷新完成！', 'success'); }
-            catch (e) { showToast('刷新失败: ' + e.message, 'error'); }
+            try {
+                showToast('正在刷新...', 'info');
+                const results = await fetchApi('/api/accounts/refresh-all-usage', { method: 'POST' });
+                loadAccounts();
+
+                // 统计禁用的账号
+                const disabledCount = results.filter(r => r.usage?.disabled).length;
+                if (disabledCount > 0) {
+                    showToast(`刷新完成！${disabledCount} 个账号已自动禁用`, 'warning');
+                } else {
+                    showToast('刷新完成！', 'success');
+                }
+            } catch (e) {
+                showToast('刷新失败: ' + e.message, 'error');
+            }
         }
 
         async function loadLogs() {
@@ -457,6 +480,17 @@ const { useState, useEffect, useRef } = React;
         async function disableAccount(id) {
             try { await fetchApi(`/api/accounts/${id}/disable`, { method: 'POST' }); refresh(); showToast('已禁用', 'success'); }
             catch (e) { showToast('禁用失败: ' + e.message, 'error'); }
+        }
+
+        async function revalidateAccount(id) {
+            try {
+                showToast('正在重新验证账号...', 'info');
+                const result = await fetchApi(`/api/accounts/${id}/revalidate`, { method: 'POST' });
+                refresh();
+                showToast(result.message || '账号已重新验证并启用', 'success');
+            } catch (e) {
+                showToast('重新验证失败: ' + e.message, 'error');
+            }
         }
 
         async function changeAdminKey() {
@@ -637,6 +671,58 @@ const { useState, useEffect, useRef } = React;
         }
 
         async function refresh() { loadStatus(); loadAccounts(); loadStrategy(); }
+
+        // ========== SSE 实时更新 ==========
+        let eventSource = null;
+
+        function initSSE() {
+            if (eventSource) {
+                eventSource.close();
+            }
+
+            eventSource = new EventSource('/api/events', {
+                headers: { 'Authorization': `Bearer ${adminKey}` }
+            });
+
+            eventSource.onmessage = (e) => {
+                try {
+                    const data = JSON.parse(e.data);
+
+                    if (data.type === 'account_status_changed') {
+                        // 更新账号状态
+                        loadAccounts();
+
+                        // 显示通知
+                        if (data.status === 'invalid') {
+                            showToast(`账号 ${data.accountName} 已自动禁用: ${data.reason}`, 'warning');
+                        } else if (data.status === 'cooldown') {
+                            showToast(`账号 ${data.accountName} 进入冷却状态`, 'info');
+                        } else if (data.status === 'active') {
+                            showToast(`账号 ${data.accountName} 已恢复活跃`, 'success');
+                        }
+                    } else if (data.type === 'init') {
+                        // 初始数据，可选处理
+                        console.log('SSE 连接已建立');
+                    }
+                } catch (err) {
+                    console.error('SSE 消息解析失败:', err);
+                }
+            };
+
+            eventSource.onerror = (err) => {
+                console.error('SSE 连接错误:', err);
+                eventSource.close();
+                // 5秒后重连
+                setTimeout(() => {
+                    if (adminKey) {
+                        initSSE();
+                    }
+                }, 5000);
+            };
+        }
+
+        // 暴露为全局函数
+        window.initSSE = initSSE;
 
         // ========== 数据分析相关函数 ==========
         let chartInstances = {};

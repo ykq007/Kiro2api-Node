@@ -247,6 +247,16 @@ export class DatabaseManager {
     if (!this._columnExists('api_keys', 'daily_token_quota')) {
       this.db.exec(`ALTER TABLE api_keys ADD COLUMN daily_token_quota INTEGER DEFAULT 0`);
     }
+
+    // 为 accounts 表添加 disabled_reason 字段（禁用原因）
+    if (!this._columnExists('accounts', 'disabled_reason')) {
+      this.db.exec(`ALTER TABLE accounts ADD COLUMN disabled_reason TEXT`);
+    }
+
+    // 为 accounts 表添加 disabled_at 字段（禁用时间）
+    if (!this._columnExists('accounts', 'disabled_at')) {
+      this.db.exec(`ALTER TABLE accounts ADD COLUMN disabled_at TEXT`);
+    }
   }
 
   // 插入请求日志
@@ -525,7 +535,9 @@ export class DatabaseManager {
         error_count as errorCount,
         created_at as createdAt,
         last_used_at as lastUsedAt,
-        usage
+        usage,
+        disabled_reason as disabledReason,
+        disabled_at as disabledAt
       FROM accounts
       ORDER BY created_at DESC
     `);
@@ -544,7 +556,9 @@ export class DatabaseManager {
         error_count as errorCount,
         created_at as createdAt,
         last_used_at as lastUsedAt,
-        usage
+        usage,
+        disabled_reason as disabledReason,
+        disabled_at as disabledAt
       FROM accounts
       WHERE id = ?
     `);
@@ -597,6 +611,14 @@ export class DatabaseManager {
     if (updates.usage !== undefined) {
       fields.push('usage = ?');
       values.push(updates.usage ? JSON.stringify(updates.usage) : null);
+    }
+    if (updates.disabledReason !== undefined) {
+      fields.push('disabled_reason = ?');
+      values.push(updates.disabledReason);
+    }
+    if (updates.disabledAt !== undefined) {
+      fields.push('disabled_at = ?');
+      values.push(updates.disabledAt);
     }
 
     if (fields.length === 0) return;

@@ -23,11 +23,15 @@ window.AccountsTable = function(props) {
         }
     };
 
-    const getStatusLabel = (status) => {
+    const getStatusLabel = (status, account) => {
+        if (status === 'invalid' && account?.disabledReason) {
+            const shortReason = account.disabledReason.substring(0, 30);
+            return `失效: ${shortReason}${account.disabledReason.length > 30 ? '...' : ''}`;
+        }
         const labels = {
             active: '活跃',
             cooldown: '冷却中',
-            invalid: '失效',
+            invalid: '已失效',
             disabled: '已禁用'
         };
         return labels[status] || status;
@@ -47,11 +51,16 @@ window.AccountsTable = function(props) {
                     <div>
                         <div className="font-medium text-slate-900 dark:text-white">{account.name}</div>
                         {account.usage?.userEmail && <div className="text-xs text-slate-500 dark:text-slate-400">{account.usage.userEmail}</div>}
+                        {(account.status === 'disabled' || account.status === 'invalid') && account.disabledReason && (
+                            <div className="text-xs text-rose-500 dark:text-rose-400 mt-1" title={account.disabledReason}>
+                                {account.disabledReason.substring(0, 50)}{account.disabledReason.length > 50 ? '...' : ''}
+                            </div>
+                        )}
                     </div>
                 </div>
                 <Badge variant={getStatusVariant(account.status)}>{getStatusLabel(account.status)}</Badge>
             </div>
-            
+
             <div className="mb-4">
                 <ProgressBar 
                     value={account.usage?.currentUsage || 0} 
@@ -80,7 +89,9 @@ window.AccountsTable = function(props) {
                     icon={<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>}
                 >
                 </Button>
-                {account.status === 'disabled' ? (
+                {account.status === 'invalid' ? (
+                    <Button variant="warning" size="sm" onClick={() => props.onRevalidate(account.id)}>重新验证</Button>
+                ) : account.status === 'disabled' ? (
                     <Button variant="success" size="sm" onClick={() => props.onEnable(account.id)}>启用</Button>
                 ) : (
                     <Button variant="secondary" size="sm" onClick={() => props.onDisable(account.id)}>禁用</Button>
@@ -127,10 +138,17 @@ window.AccountsTable = function(props) {
                                     <div className="flex flex-col">
                                         <div className="text-sm font-medium text-slate-900 dark:text-white">{a.name}</div>
                                         {a.usage?.userEmail && <div className="text-xs text-slate-500 dark:text-slate-400">{a.usage.userEmail}</div>}
+                                        {(a.status === 'disabled' || a.status === 'invalid') && a.disabledReason && (
+                                            <div className="text-xs text-rose-500 dark:text-rose-400 mt-1" title={a.disabledReason}>
+                                                {a.disabledReason.substring(0, 50)}{a.disabledReason.length > 50 ? '...' : ''}
+                                            </div>
+                                        )}
                                     </div>
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap">
-                                    <Badge variant={getStatusVariant(a.status)}>{getStatusLabel(a.status)}</Badge>
+                                    <div className="flex flex-col gap-1 items-start">
+                                        <Badge variant={getStatusVariant(a.status)}>{getStatusLabel(a.status)}</Badge>
+                                    </div>
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap">
                                     <div className="w-full max-w-xs">

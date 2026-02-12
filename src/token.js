@@ -58,10 +58,14 @@ export class TokenManager {
     }
 
     const response = await fetch(tokenUrl, fetchOptions);
-    
+
     if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`Social Token 刷新失败: ${response.status} - ${error}`);
+      const errorText = await response.text();
+      const error = new Error(`Social Token 刷新失败: ${response.status} - ${errorText}`);
+      error.status = response.status;
+      error.source = 'token_refresh';
+      error.responseText = errorText.substring(0, 500);
+      throw error;
     }
 
     const data = await response.json();
@@ -106,10 +110,14 @@ export class TokenManager {
     }
 
     const response = await fetch(tokenUrl, fetchOptions);
-    
+
     if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`IdC Token 刷新失败: ${response.status} - ${error}`);
+      const errorText = await response.text();
+      const error = new Error(`IdC Token 刷新失败: ${response.status} - ${errorText}`);
+      error.status = response.status;
+      error.source = 'token_refresh';
+      error.responseText = errorText.substring(0, 500);
+      throw error;
     }
 
     const data = await response.json();
